@@ -12,7 +12,7 @@ psp:
   enabled: false
 
 validator:
-  repository: nvcr.io/nvidia/cloud-native
+  repository: quay.io/dllehr
   image: gpu-operator-validator
   version: v1.7.0
   imagePullPolicy: IfNotPresent
@@ -39,7 +39,7 @@ validator:
         value: "true"
 
 operator:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
   #version: v1.7.0
@@ -49,7 +49,7 @@ operator:
   defaultRuntime: docker
   initContainer:
     image: cuda
-    repository: nvcr.io/nvidia
+    repository: nvidia/cuda-ppc64le
     version: 11.2.1-base-ubi8
     imagePullPolicy: IfNotPresent
   tolerations:
@@ -76,7 +76,7 @@ mig:
 
 driver:
   enabled: true
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: driver
   version: "460.73.01"
   imagePullPolicy: IfNotPresent
@@ -106,9 +106,9 @@ driver:
 
 toolkit:
   enabled: true
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/dllehr
   image: container-toolkit
-  version: 1.5.0-ubuntu18.04
+  version: 1.5.0-ubi8
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   env: []
@@ -128,7 +128,7 @@ toolkit:
   priorityClassName: system-node-critical
 
 devicePlugin:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: k8s-device-plugin
   version: v0.9.0-ubi8
   imagePullPolicy: IfNotPresent
@@ -161,9 +161,9 @@ devicePlugin:
   priorityClassName: system-node-critical
 
 dcgmExporter:
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/dllehr
   image: dcgm-exporter
-  version: 2.1.8-2.4.0-rc.2-ubuntu20.04
+  version: 2.1.8-2.4.0-rc.3-ubi8
   imagePullPolicy: IfNotPresent
   args:
     - "-f"
@@ -182,7 +182,7 @@ dcgmExporter:
   priorityClassName: system-node-critical
 
 gfd:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: gpu-feature-discovery
   version: v0.4.1
   imagePullPolicy: IfNotPresent

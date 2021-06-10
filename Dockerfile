@@ -17,7 +17,7 @@ COPY controllers/ controllers/
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o gpu-operator main.go
 
-FROM nvidia/cuda:11.2.1-base-ubi8
+FROM nvidia/cuda-ppc64le:11.2.1-base-ubi8
 
 ENV NVIDIA_VISIBLE_DEVICES=void
 
