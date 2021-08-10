@@ -1,10 +1,10 @@
 image:
-  repository: k8s.gcr.io/nfd/node-feature-discovery
+  repository: quay.io/dllehr/node-feature-discovery
   # This should be set to 'IfNotPresent' for released version
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # tag, if defined will use the given image tag, else Chart.AppVersion will be used
   # tag
-imagePullSecrets: []
+imagePullSecrets: [{"name": "quaylogin"}]
 
 serviceAccount:
   # Specifies whether a service account should be created

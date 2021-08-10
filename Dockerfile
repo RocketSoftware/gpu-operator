@@ -15,7 +15,7 @@ COPY api/ api/
 COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o gpu-operator main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on go build -a -o gpu-operator main.go
 
 FROM nvidia/cuda-ppc64le:11.2.1-base-ubi8
 
