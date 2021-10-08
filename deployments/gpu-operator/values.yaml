@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 platform:
-  openshift: false
+  openshift: true
 
 nfd:
   enabled: true
@@ -12,11 +12,11 @@ psp:
   enabled: false
 
 validator:
-  repository: nvcr.io/nvidia/cloud-native
+  repository: quay.io/dllehr
   image: gpu-operator-validator
   version: v1.7.0
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env: []
   args: []
   tolerations:
@@ -39,19 +39,19 @@ validator:
         value: "true"
 
 operator:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
   #version: v1.7.0
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   priorityClassName: system-node-critical
-  defaultRuntime: docker
+  defaultRuntime: crio
   initContainer:
-    image: cuda
-    repository: nvcr.io/nvidia
+    image: cuda-ppc64le
+    repository: nvidia
     version: 11.2.1-base-ubi8
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
   tolerations:
   - key: "node-role.kubernetes.io/master"
     operator: "Equal"
@@ -76,11 +76,11 @@ mig:
 
 driver:
   enabled: true
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: driver
-  version: "460.73.01"
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  version: "460-"
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env: []
   tolerations:
   - key: nvidia.com/gpu
@@ -106,11 +106,11 @@ driver:
 
 toolkit:
   enabled: true
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/dllehr
   image: container-toolkit
-  version: 1.5.0-ubuntu18.04
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  version: 1.5.0-ubi8
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env: []
   tolerations:
   - key: nvidia.com/gpu
@@ -128,11 +128,11 @@ toolkit:
   priorityClassName: system-node-critical
 
 devicePlugin:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: k8s-device-plugin
   version: v0.9.0-ubi8
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -161,10 +161,11 @@ devicePlugin:
   priorityClassName: system-node-critical
 
 dcgmExporter:
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/dllehr
   image: dcgm-exporter
-  version: 2.1.8-2.4.0-rc.2-ubuntu20.04
-  imagePullPolicy: IfNotPresent
+  version: 2.1.8-2.4.0-rc.3-ubi8
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   args:
     - "-f"
     - "/etc/dcgm-exporter/dcp-metrics-included.csv"
@@ -182,11 +183,11 @@ dcgmExporter:
   priorityClassName: system-node-critical
 
 gfd:
-  repository: nvcr.io/nvidia
+  repository: quay.io/dllehr
   image: gpu-feature-discovery
   version: v0.4.1
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   tolerations:
     - key: nvidia.com/gpu
       operator: Exists
@@ -210,7 +211,7 @@ migManager:
   repository: nvcr.io/nvidia/cloud-native
   image: k8s-mig-manager
   version: v0.1.1-ubuntu20.04
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   imagePullSecrets: []
   tolerations:
     - key: nvidia.com/gpu
@@ -240,11 +241,11 @@ node-feature-discovery:
       value: "present"
       effect: "NoSchedule"
 
-  config: |
-    sources:
-      pci:
-        deviceLabelFields:
-        - vendor
+    config: |
+      sources:
+        pci:
+          deviceLabelFields:
+          - vendor
 
   master:
     extraLabelNs:

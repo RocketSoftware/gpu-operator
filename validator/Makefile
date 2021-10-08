@@ -54,8 +54,8 @@ $(BUILD_TARGETS): build-%:
 		$(DOCKER) build --pull \
 			--build-arg VERSION=$(VERSION) \
 			--build-arg GOLANG_VERSION=$(GOLANG_VERSION) \
-			--build-arg BASE_IMAGE=nvcr.io/nvidia/cuda:11.2.1-base-$(*) \
-			--build-arg CUDA_SAMPLE_IMAGE=nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda11.2.1-$(*) \
+			--build-arg BASE_IMAGE=nvidia/cuda-ppc64le:11.2.1-base-$(*) \
+			--build-arg CUDA_SAMPLE_IMAGE=quay.io/dllehr/cuda-sample:vectoradd-cuda11.2.1-ubi8 \
 			--tag $(IMAGE):$(VERSION) \
 			--file Dockerfile \
 			$(BUILD_DIR)
