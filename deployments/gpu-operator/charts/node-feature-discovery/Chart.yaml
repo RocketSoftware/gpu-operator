@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: v0.8.2
+appVersion: ppc64le_v4.8.0-202110011559 
 description: 'Detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels. '
 home: https://github.com/kubernetes-sigs/node-feature-discovery
 keywords:
@@ -10,4 +10,4 @@ name: node-feature-discovery
 sources:
 - https://github.com/kubernetes-sigs/node-feature-discovery
 type: application
-version: 0.8.2
+version: ppc64le_v4.8.0-202110011559
