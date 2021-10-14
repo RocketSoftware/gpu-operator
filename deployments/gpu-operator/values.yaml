@@ -12,11 +12,11 @@ psp:
   enabled: false
 
 validator:
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: gpu-operator-validator
   version: v1.7.0
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   env: []
   args: []
   tolerations:
@@ -39,12 +39,12 @@ validator:
         value: "true"
 
 operator:
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
   #version: v1.7.0
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   priorityClassName: system-node-critical
   defaultRuntime: crio
   initContainer:
@@ -76,11 +76,11 @@ mig:
 
 driver:
   enabled: true
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: driver
   version: "460-"
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   env: []
   tolerations:
   - key: nvidia.com/gpu
@@ -106,11 +106,11 @@ driver:
 
 toolkit:
   enabled: true
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: container-toolkit
   version: 1.5.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   env: []
   tolerations:
   - key: nvidia.com/gpu
@@ -128,11 +128,11 @@ toolkit:
   priorityClassName: system-node-critical
 
 devicePlugin:
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: k8s-device-plugin
   version: v0.9.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -161,11 +161,11 @@ devicePlugin:
   priorityClassName: system-node-critical
 
 dcgmExporter:
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: dcgm-exporter
   version: 2.1.8-2.4.0-rc.3-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   args:
     - "-f"
     - "/etc/dcgm-exporter/dcp-metrics-included.csv"
@@ -183,11 +183,11 @@ dcgmExporter:
   priorityClassName: system-node-critical
 
 gfd:
-  repository: quay.io/dllehr
+  repository: icr.io/rocketce
   image: gpu-feature-discovery
   version: v0.4.1
   imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  imagePullSecrets: ["icrlogin"]
   tolerations:
     - key: nvidia.com/gpu
       operator: Exists
