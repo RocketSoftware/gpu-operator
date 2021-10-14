@@ -10,4 +10,4 @@ name: node-feature-discovery
 sources:
 - https://github.com/kubernetes-sigs/node-feature-discovery
 type: application
-version: ppc64le_v4.8.0-202110011559
+version: 0.8.2
