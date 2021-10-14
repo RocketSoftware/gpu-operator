@@ -14,7 +14,7 @@ psp:
 validator:
   repository: icr.io/rocketce
   image: gpu-operator-validator
-  version: v1.7.0
+  version: v0.1.0
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   env: []
@@ -78,7 +78,7 @@ driver:
   enabled: true
   repository: icr.io/rocketce
   image: driver
-  version: "460-"
+  version: "460.73.01-rhcos4.8"
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   env: []
@@ -163,7 +163,7 @@ devicePlugin:
 dcgmExporter:
   repository: icr.io/rocketce
   image: dcgm-exporter
-  version: 2.1.8-2.4.0-rc.3-ubi8
+  version: 2.2.9-2.5.0-ubi8
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   args:
@@ -185,7 +185,7 @@ dcgmExporter:
 gfd:
   repository: icr.io/rocketce
   image: gpu-feature-discovery
-  version: v0.4.1
+  version: ppc64le_v4.8.0-202110011559
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   tolerations:
