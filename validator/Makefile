@@ -66,7 +66,7 @@ $(BUILD_TARGETS): build-%:
 			--build-arg VERSION="$(VERSION)" \
 			--build-arg BUILDER_IMAGE="$(BUILDER_IMAGE)" \
 			--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
-			--build-arg CUDA_SAMPLE_IMAGE=quay.io/rajesh210/cuda-sample:vectoradd-cuda11.2.1-ubi8 \
+			--build-arg CUDA_SAMPLE_IMAGE=quay.io/rajeshnukala/cuda-sample:vectoradd-cuda11.2.1-ubi8 \
 			--tag $(IMAGE):$(VERSION)-$(*) \
 			--file Dockerfile \
 			$(BUILD_DIR)
