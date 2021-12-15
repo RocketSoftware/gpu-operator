@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CUDA_IMAGE=nvidia/cuda
+ARG CUDA_IMAGE=nvidia/cuda-ppc64le
 ARG CUDA_VERSION=undefined
 
 ARG BASE_DIST=ubi8
@@ -34,7 +34,7 @@ COPY api/ api/
 COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le GO111MODULE=on \
     go build -a -o gpu-operator main.go
 
 FROM ${CUDA_IMAGE}:${CUDA_VERSION}-base-${BASE_DIST}

@@ -91,6 +91,8 @@ spec:
           - name: host-os-release
             mountPath: "/host-etc/os-release"
             readOnly: true
+          - name: sys
+            mountPath: /sys
           - name: run-mellanox-drivers
             mountPath: /run/mellanox/drivers
             mountPropagation: HostToContainer
@@ -144,6 +146,10 @@ spec:
         - name: host-os-release
           hostPath:
             path: "/etc/os-release"
+        - name: sys
+          hostPath:
+            path: "/sys"
+            type: ''
         - name: run-nvidia-topologyd
           hostPath:
             path: /run/nvidia-topologyd

@@ -19,12 +19,12 @@ daemonsets:
     effect: NoSchedule
 
 validator:
-  repository: nvcr.io/nvidia/cloud-native
+  repository: quay.io/rajesh210
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env: []
   args: []
   securityContext:
@@ -38,20 +38,20 @@ validator:
         value: "true"
 
 operator:
-  repository: nvcr.io/nvidia
+  repository: quay.io/rajesh210
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   priorityClassName: system-node-critical
-  defaultRuntime: docker
+  defaultRuntime: crio
   runtimeClass: nvidia
   initContainer:
     image: cuda
-    repository: nvcr.io/nvidia
+    repository: cuda-ppc64le
     version: 11.2.1-base-ubi8
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
   tolerations:
   - key: "node-role.kubernetes.io/master"
     operator: "Equal"
@@ -83,11 +83,11 @@ mig:
 
 driver:
   enabled: true
-  repository: nvcr.io/nvidia
+  repository: quay.io/rajesh210
   image: driver
   version: "470.57.02"
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   rdma:
     enabled: false
   manager:
@@ -125,11 +125,11 @@ driver:
 
 toolkit:
   enabled: true
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/rajesh210
   image: container-toolkit
-  version: 1.6.0-ubuntu18.04
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  version: 1.6.0-ubi8
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env: []
   securityContext:
     privileged: true
@@ -138,11 +138,11 @@ toolkit:
   resources: {}
 
 devicePlugin:
-  repository: nvcr.io/nvidia
+  repository: quay.io/rajesh210
   image: k8s-device-plugin
   version: v0.9.0-ubi8
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -163,10 +163,11 @@ devicePlugin:
 
 dcgm:
   enabled: true
-  repository: nvcr.io/nvidia/cloud-native
+  repository: quay.io/rajesh210
   image: dcgm
-  version: 2.2.3-ubuntu20.04
-  imagePullPolicy: IfNotPresent
+  version: 2.2.3-ubi8
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   hostPort: 5555
   args: []
   env: []
@@ -174,10 +175,11 @@ dcgm:
   resources: {}
 
 dcgmExporter:
-  repository: nvcr.io/nvidia/k8s
+  repository: quay.io/rajesh210
   image: dcgm-exporter
-  version: 2.2.9-2.4.0-ubuntu20.04
-  imagePullPolicy: IfNotPresent
+  version: 2.2.9-2.4.0-ubi8
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env:
     - name: DCGM_EXPORTER_LISTEN
       value: ":9400"
@@ -189,11 +191,11 @@ dcgmExporter:
   resources: {}
 
 gfd:
-  repository: nvcr.io/nvidia
+  repository: quay.io/rajesh210
   image: gpu-feature-discovery
   version: v0.4.1
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   env:
     - name: GFD_SLEEP_INTERVAL
       value: 60s
@@ -209,7 +211,7 @@ migManager:
   repository: nvcr.io/nvidia/cloud-native
   image: k8s-mig-manager
   version: v0.1.2-ubuntu20.04
-  imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
   imagePullSecrets: []
   env:
     - name: WITH_REBOOT

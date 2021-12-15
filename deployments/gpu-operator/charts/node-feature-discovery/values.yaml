@@ -1,10 +1,10 @@
 image:
-  repository: k8s.gcr.io/nfd/node-feature-discovery
+  repository: quay.io/rajesh210/node-feature-discovery
   # This should be set to 'IfNotPresent' for released version
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # tag, if defined will use the given image tag, else Chart.AppVersion will be used
   # tag
-imagePullSecrets: []
+imagePullSecrets: [{"name": "quaylogin"}]
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -33,7 +33,7 @@ master:
       drop: [ "ALL" ]
     readOnlyRootFilesystem: true
     runAsNonRoot: true
-    # runAsUser: 1000
+    runAsUser: 1000
 
   service:
     type: ClusterIP
@@ -194,7 +194,7 @@ worker:
       drop: [ "ALL" ]
     readOnlyRootFilesystem: true
     runAsNonRoot: true
-    # runAsUser: 1000
+    runAsUser: 1000
 
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious

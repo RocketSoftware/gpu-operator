@@ -61,10 +61,6 @@ spec:
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-      {{- with .Values.operator.resources }}
-        resources:
-          {{- toYaml . | nindent 10 }}
-      {{- end }}
         ports:
           - name: metrics
             containerPort: 8080
