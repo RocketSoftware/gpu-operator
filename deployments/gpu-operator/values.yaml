@@ -226,8 +226,8 @@ nodeStatusExporter:
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   version: V1.8.0
-  imagePullPolicy: IfNotPresent
-  imagePullSecrets: []
+  imagePullPolicy: Always
+  imagePullSecrets: ["quaylogin"]
   resources: {}
 
 node-feature-discovery:
