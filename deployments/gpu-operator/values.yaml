@@ -163,11 +163,10 @@ devicePlugin:
 
 dcgm:
   enabled: true
-  repository: quay.io/rajeshnukala
+  repository: nvcr.io/nvidia/cloud-native
   image: dcgm
-  version: 2.2.3-ubi8
-  imagePullPolicy: Always
-  imagePullSecrets: ["quaylogin"]
+  version: 2.2.3-ubuntu20.04
+  imagePullPolicy: IfNotPresent
   hostPort: 5555
   args: []
   env: []
