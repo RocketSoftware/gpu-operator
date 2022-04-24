@@ -14,7 +14,7 @@ psp:
 validator:
   repository: icr.io/rocketce
   image: gpu-operator-validator
-  version: v0.1.0
+  version: v1.7.0
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   env: []
@@ -49,9 +49,10 @@ operator:
   defaultRuntime: crio
   initContainer:
     image: cuda-ppc64le
-    repository: nvidia
+    repository: icr.io/rocketce
     version: 11.2.1-base-ubi8
     imagePullPolicy: Always
+    imagePullSecrets: ["icrlogin"]
   tolerations:
   - key: "node-role.kubernetes.io/master"
     operator: "Equal"
