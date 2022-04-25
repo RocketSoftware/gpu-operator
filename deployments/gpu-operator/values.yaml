@@ -14,7 +14,7 @@ daemonsets:
       operator: Exists
       effect: NoSchedule
 validator:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
@@ -32,7 +32,7 @@ validator:
       - name: WITH_WORKLOAD
         value: "true"
 operator:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
@@ -43,7 +43,7 @@ operator:
   runtimeClass: nvidia
   initContainer:
     image: cuda
-    repository: quay.io/mgiessing
+    repository: icr.io/rocketce
     version: 11.4.2-base-ubi8
     imagePullPolicy: Always
   tolerations:
@@ -76,7 +76,7 @@ mig:
 driver:
   enabled: true
   use_ocp_driver_toolkit: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: driver
   version: "470.82.01"
   imagePullPolicy: Always
@@ -86,7 +86,7 @@ driver:
     useHostMofed: false
   manager:
     image: k8s-driver-manager
-    repository: quay.io/mgiessing
+    repository: icr.io/rocketce
     version: v0.2.0-ubi8
     imagePullPolicy: Always
     env:
@@ -121,7 +121,7 @@ driver:
     config: ""
 toolkit:
   enabled: true
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: container-toolkit
   version: 1.7.2-ubi8
   imagePullPolicy: Always
@@ -133,7 +133,7 @@ toolkit:
       level: "s0"
   resources: {}
 devicePlugin:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: k8s-device-plugin
   version: v0.10.0-ubi8
   imagePullPolicy: Always
@@ -159,7 +159,7 @@ devicePlugin:
 dcgm:
   # disabled by default to use embedded nv-hostengine by exporter
   enabled: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: dcgm
   version: 2.3.1-ubi8
   imagePullPolicy: Always
@@ -169,7 +169,7 @@ dcgm:
   securityContext: {}
   resources: {}
 dcgmExporter:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: dcgm-exporter
   version: 2.3.1-2.6.1-ubi8
   imagePullPolicy: Always
@@ -183,7 +183,7 @@ dcgmExporter:
   securityContext: {}
   resources: {}
 gfd:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-feature-discovery
   version: v0.4.1
   imagePullPolicy: Always
@@ -198,7 +198,7 @@ gfd:
   resources: {}
 migManager:
   enabled: true
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: k8s-mig-manager
   version: v0.2.0-ubi8
   imagePullPolicy: Always
@@ -215,7 +215,7 @@ migManager:
     name: ""
 nodeStatusExporter:
   enabled: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
