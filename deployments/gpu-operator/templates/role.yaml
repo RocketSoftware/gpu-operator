@@ -42,7 +42,10 @@ rules:
   - namespaces
   verbs:
   - get
+  - list
   - create
+  - watch
+  - update
 - apiGroups:
   - apps
   resources:
@@ -56,11 +59,13 @@ rules:
   - monitoring.coreos.com
   resources:
   - servicemonitors
+  - prometheusrules
   verbs:
   - get
   - list
   - create
   - watch
+  - update
 - apiGroups:
   - nvidia.com
   resources:
@@ -129,3 +134,13 @@ rules:
   - get
   - list
   - create
+  - update
+  - watch
+- apiGroups:
+  - image.openshift.io
+  resources:
+  - imagestreams
+  verbs:
+  - get
+  - list
+  - watch

@@ -18,14 +18,17 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/prometheus/common/log"
+
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+
+	"time"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -57,10 +60,11 @@ type ClusterPolicyReconciler struct {
 // +kubebuilder:rbac:groups="",resources=namespaces;serviceaccounts;pods;services;services/finalizers;endpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims;events;configmaps;secrets;nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors;prometheusrule,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=scheduling.k8s.io,resources=priorityclasses,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=image.openshift.io,resources=imagestreams,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -79,6 +83,7 @@ func (r *ClusterPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	instance := &gpuv1.ClusterPolicy{}
 	err := r.Client.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
+		clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusClusterPolicyUnavailable)
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
@@ -93,19 +98,39 @@ func (r *ClusterPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// We already have a main Clusterpolicy
 	if clusterPolicyCtrl.singleton != nil && clusterPolicyCtrl.singleton.ObjectMeta.Name != instance.ObjectMeta.Name {
 		instance.SetState(gpuv1.Ignored)
+		// do not change `clusterPolicyCtrl.operatorMetrics.reconciliationStatus` here,
+		// spurious reconciliation
 		return ctrl.Result{}, err
 	}
 
 	err = clusterPolicyCtrl.init(r, instance)
 	if err != nil {
 		r.Log.Error(err, "Failed to initialize ClusterPolicy controller")
+
+		if clusterPolicyCtrl.operatorMetrics != nil {
+			clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusClusterPolicyUnavailable)
+		}
 		return ctrl.Result{}, err
 	}
 
+	if !clusterPolicyCtrl.hasNFDLabels {
+		r.Log.Info("WARNING: NFD labels missing in the cluster, GPU nodes cannot be discovered.")
+		clusterPolicyCtrl.operatorMetrics.reconciliationHasNFDLabels.Set(0)
+	} else {
+		clusterPolicyCtrl.operatorMetrics.reconciliationHasNFDLabels.Set(1)
+	}
+	if !clusterPolicyCtrl.hasGPUNodes {
+		r.Log.Info("No GPU node can be found in the cluster.")
+	}
+
+	clusterPolicyCtrl.operatorMetrics.reconciliationTotal.Inc()
 	overallStatus := gpuv1.Ready
+	statesNotReady := []string{}
 	for {
 		status, statusError := clusterPolicyCtrl.step()
 		if statusError != nil {
+			clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusNotReady)
+			clusterPolicyCtrl.operatorMetrics.reconciliationFailed.Inc()
 			return ctrl.Result{RequeueAfter: time.Second * 5}, statusError
 		}
 
@@ -114,10 +139,12 @@ func (r *ClusterPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			if instance.Status.State == gpuv1.Ready {
 				updateCRState(r, req.NamespacedName, gpuv1.NotReady)
 			}
-			// If the resource is not ready, log status and proceed with other components
-			r.Log.Info("ClusterPolicy step wasn't ready", "State:", status)
 			overallStatus = gpuv1.NotReady
+			statesNotReady = append(statesNotReady, clusterPolicyCtrl.stateNames[clusterPolicyCtrl.idx-1])
 		}
+		r.Log.Info("INFO: ClusterPolicy step completed",
+			"state:", clusterPolicyCtrl.stateNames[clusterPolicyCtrl.idx-1],
+			"status", status)
 
 		if clusterPolicyCtrl.last() {
 			break
@@ -126,11 +153,38 @@ func (r *ClusterPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// if any state is not ready, requeue for reconfile after 5 seconds
 	if overallStatus != gpuv1.Ready {
+		clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusNotReady)
+		clusterPolicyCtrl.operatorMetrics.reconciliationFailed.Inc()
+
+		r.Log.Info("ClusterPolicy isn't ready", "states not ready", statesNotReady)
+
 		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+	}
+
+	if !clusterPolicyCtrl.hasNFDLabels {
+		// no NFD-labelled node in the cluster (required dependency),
+		// watch periodically for the labels to appear
+		var requeueAfter = time.Second * 45
+		r.Log.Info("No NFD label found, polling for new nodes.",
+			"requeueAfter", requeueAfter)
+
+		// Update CR state as ready as all states are complete
+		updateCRState(r, req.NamespacedName, gpuv1.NotReady)
+		clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusNotReady)
+
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	// Update CR state as ready as all states are complete
 	updateCRState(r, req.NamespacedName, gpuv1.Ready)
+	clusterPolicyCtrl.operatorMetrics.reconciliationStatus.Set(reconciliationStatusSuccess)
+	clusterPolicyCtrl.operatorMetrics.reconciliationLastSuccess.Set(float64(time.Now().Unix()))
+
+	if !clusterPolicyCtrl.hasGPUNodes {
+		r.Log.Info("No GPU node found, watching for new nodes to join the cluster.", "hasNFDLabels", clusterPolicyCtrl.hasNFDLabels)
+	} else {
+		r.Log.Info("ClusterPolicy is ready.")
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -184,28 +238,51 @@ func addWatchNewGPUNode(r *ClusterPolicyReconciler, c controller.Controller, mgr
 		CreateFunc: func(e event.CreateEvent) bool {
 			labels := e.Object.GetLabels()
 
-			gpuCommonLabelMissing := hasGPULabels(labels) && !hasCommonGPULabel(labels)
-			if gpuCommonLabelMissing {
-				log.Info("New node needs an update, GPU common label missing.",
-					"name", e.Object.GetName())
-			}
-			return gpuCommonLabelMissing
+			return hasGPULabels(labels)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			newLabels := e.ObjectNew.GetLabels()
+			oldLabels := e.ObjectOld.GetLabels()
 
 			gpuCommonLabelMissing := hasGPULabels(newLabels) && !hasCommonGPULabel(newLabels)
 			gpuCommonLabelOutdated := !hasGPULabels(newLabels) && hasCommonGPULabel(newLabels)
 			migManagerLabelMissing := hasMIGCapableGPU(newLabels) && !hasMIGManagerLabel(newLabels)
-			needsUpdate := gpuCommonLabelMissing || gpuCommonLabelOutdated || migManagerLabelMissing
+
+			oldOSTreeLabel, _ := oldLabels[nfdOSTreeVersionLabelKey]
+			newOSTreeLabel, _ := newLabels[nfdOSTreeVersionLabelKey]
+			osTreeLabelChanged := oldOSTreeLabel != newOSTreeLabel
+
+			needsUpdate := gpuCommonLabelMissing ||
+				gpuCommonLabelOutdated ||
+				migManagerLabelMissing ||
+				osTreeLabelChanged
+
 			if needsUpdate {
-				log.Info("Node needs an update",
+				r.Log.Info("Node needs an update",
 					"name", e.ObjectNew.GetName(),
 					"gpuCommonLabelMissing", gpuCommonLabelMissing,
 					"gpuCommonLabelOutdated", gpuCommonLabelOutdated,
-					"migManagerLabelMissing", migManagerLabelMissing)
+					"migManagerLabelMissing", migManagerLabelMissing,
+					"migManagerLabelMissing", migManagerLabelMissing,
+					"osTreeLabelChanged", osTreeLabelChanged,
+				)
 			}
+
 			return needsUpdate
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			// if an RHCOS GPU node is deleted, trigger a
+			// reconciliation to ensure that there is no dangling
+			// OpenShift Driver-Toolkit (RHCOS version-specific)
+			// DaemonSet.
+			// NB: we cannot know here if the DriverToolkit is
+			// enabled.
+
+			labels := e.Object.GetLabels()
+
+			_, hasOSTreeLabel := labels[nfdOSTreeVersionLabelKey]
+
+			return hasGPULabels(labels) && hasOSTreeLabel
 		},
 	}
 
@@ -238,8 +315,8 @@ func (r *ClusterPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner ClusterPolicy
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resource Daemonsets and requeue the owner ClusterPolicy
+	err = c.Watch(&source.Kind{Type: &appsv1.DaemonSet{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &gpuv1.ClusterPolicy{},
 	})

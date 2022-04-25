@@ -13,219 +13,106 @@ metadata:
           },
           "spec": {
             "dcgmExporter": {
-              "affinity": {},
-              "image": "dcgm-exporter",
-              "imagePullSecrets": [],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.dcgm-exporter": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia/k8s",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:8af02463a8b60b21202d0bf69bc1ee0bb12f684fa367f903d138df6cacc2d0ac"
+              "config": {
+                "name": ""
+              }
+            },
+            "dcgm": {
+              "enabled": true
+            },
+            "daemonsets": {
             },
             "devicePlugin": {
-              "affinity": {},
-              "image": "k8s-device-plugin",
-              "imagePullSecrets": [],
-              "args": [],
-              "env": [
-                {
-                  "name": "PASS_DEVICE_SPECS",
-                  "value": "true"
-                },
-                {
-                  "name": "FAIL_ON_INIT_ERROR",
-                  "value": "true"
-                },
-                {
-                  "name": "DEVICE_LIST_STRATEGY",
-                  "value": "envvar"
-                },
-                {
-                  "name": "DEVICE_ID_STRATEGY",
-                  "value": "uuid"
-                },
-                {
-                  "name": "NVIDIA_VISIBLE_DEVICES",
-                  "value": "all"
-                },
-                {
-                  "name": "NVIDIA_DRIVER_CAPABILITIES",
-                  "value": "all"
-                }
-              ],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.device-plugin": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:85def0197f388e5e336b1ab0dbec350816c40108a58af946baa1315f4c96ee05"
             },
             "driver": {
               "enabled": true,
-              "affinity": {},
-              "image": "driver",
-              "imagePullSecrets": [],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.driver": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
+              "use_ocp_driver_toolkit": true,
               "repoConfig": {
-                "configMapName": "",
-                "destinationDir": ""
-              },
-              "licensingConfig": {
                 "configMapName": ""
               },
-              "version": "sha256:09ba3eca64a80fab010a9fcd647a2675260272a8c3eb515dfed6dc38a2d31ead"
+              "certConfig": {
+                "name": ""
+              },
+              "licensingConfig": {
+                "nlsEnabled": false,
+                "configMapName": ""
+              },
+              "virtualTopology": {
+                "config": ""
+              }
             },
             "gfd": {
-              "affinity": {},
-              "image": "gpu-feature-discovery",
-              "imagePullSecrets": [],
-              "env": [
-                {
-                  "name": "GFD_SLEEP_INTERVAL",
-                  "value": "60s"
-                },
-                {
-                  "name": "FAIL_ON_INIT_ERROR",
-                  "value": "true"
-                }
-              ],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.gpu-feature-discovery": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:bfc39d23568458dfd50c0c5323b6d42bdcd038c420fb2a2becd513a3ed3be27f"
             },
             "migManager": {
-              "enabled": true,
-              "affinity": {},
-              "image": "k8s-mig-manager",
-              "imagePullSecrets": [],
-              "env": [
-                {
-                  "name": "WITH_REBOOT",
-                  "value": "false"
-                }
-              ],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.mig-manager": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia/cloud-native",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:495ed3b42e0541590c537ab1b33bda772aad530d3ef6a4f9384d3741a59e2bf8"
+              "enabled": true
+            },
+            "nodeStatusExporter": {
+              "enabled": true
             },
             "operator": {
               "defaultRuntime": "crio",
               "deployGFD": true,
               "initContainer": {
-                "image": "cuda",
-                "repository": "nvcr.io/nvidia",
-                "version": "sha256:15674e5c45c97994bc92387bad03a0d52d7c1e983709c471c4fecc8e806dbdce",
-                "imagePullSecrets": []
               }
             },
             "mig": {
               "strategy": "single"
             },
             "toolkit": {
-              "enabled": true,
-              "affinity": {},
-              "image": "container-toolkit",
-              "imagePullSecrets": [],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.container-toolkit": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia/k8s",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:ffa284f1f359d70f0e1d6d8e7752d7c92ef7445b0d74965a8682775de37febf8"
+              "enabled": true
             },
             "validator": {
-              "affinity": {},
-              "image": "gpu-operator-validator",
-              "imagePullSecrets": [],
-              "nodeSelector": {
-                "nvidia.com/gpu.deploy.operator-validator": "true"
-              },
-              "podSecurityContext": {},
-              "repository": "nvcr.io/nvidia/cloud-native",
-              "resources": {},
-              "securityContext": {},
-              "tolerations": [],
-              "priorityClassName": "system-node-critical",
-              "version": "sha256:cb7c89d0d336b61ac6624a0f1900dd2516faa12aa9cfe52cb3f2385a8aece1c7",
-              "env": [
-                {
-                  "name": "WITH_WORKLOAD",
-                  "value": "true"
-                }
-              ]
+              "plugin": {
+                "env": [
+                  {
+                    "name": "WITH_WORKLOAD",
+                    "value": "true"
+                  }
+                ]
+              }
             }
           }
         }
       ]
     operators.operatorframework.io/builder: operator-sdk-v1.4.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operatorframework.io/suggested-namespace: nvidia-gpu-operator
     capabilities: Basic Install
     categories: AI/Machine Learning, OpenShift Optional
     certified: "true"
-    containerImage: nvcr.io/nvidia/gpu-operator:v1.7.0
-    createdAt: "Wed Feb 24 13:49:07 PST 2021"
+    containerImage: nvcr.io/nvidia/gpu-operator:devel-ubi8
+    createdAt: "Tue Aug 10 06:58:46 PDT 2021"
     description: Automate the management and monitoring of NVIDIA GPUs.
     provider: NVIDIA
     repository: http://github.com/NVIDIA/gpu-operator
     support: NVIDIA
-  name: gpu-operator-certified.v1.7.0
+  name: gpu-operator-certified.v1.0.0-devel
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   relatedImages:
     - name: gpu-operator-image
-      image: nvcr.io/nvidia/gpu-operator@sha256:2fe9e7ee251762a9d862e780ecb45bd2d4b2ecf976cc7195adc3cbc3cb034733
+      image: nvcr.io/nvidia/gpu-operator:devel-ubi8
     - name: dcgm-exporter-image
-      image: nvcr.io/nvidia/k8s/dcgm-exporter@sha256:8af02463a8b60b21202d0bf69bc1ee0bb12f684fa367f903d138df6cacc2d0ac
+      image: nvcr.io/nvidia/k8s/dcgm-exporter@sha256:8546a3e1ca8e642d2dbbfde13ee439e8137513be9886f9fe51f4fa9c4db80198
+    - name: dcgm-image
+      image: nvcr.io/nvidia/cloud-native/dcgm@sha256:f4c4de8d66b2fef8cebaee6fec2fb2d15d01e835de2654df6dfd4a0ce0baec6b
     - name: container-toolkit-image
-      image: nvcr.io/nvidia/k8s/container-toolkit@sha256:ffa284f1f359d70f0e1d6d8e7752d7c92ef7445b0d74965a8682775de37febf8
+      image: nvcr.io/nvidia/k8s/container-toolkit@sha256:5f826e306d093332a86afa7d1e96218b5bdda8d33067931cff7914f6bb2994ee
     - name: driver-image
-      image: nvcr.io/nvidia/driver@sha256:09ba3eca64a80fab010a9fcd647a2675260272a8c3eb515dfed6dc38a2d31ead
+      image: nvcr.io/nvidia/driver@sha256:35c8231e28e572b148699d52a5f5c9745556fd32ab4160da68d0fc84234c1309
     - name: device-plugin-image
-      image: nvcr.io/nvidia/k8s-device-plugin@sha256:85def0197f388e5e336b1ab0dbec350816c40108a58af946baa1315f4c96ee05
+      image: nvcr.io/nvidia/k8s-device-plugin@sha256:69171f906efe4bbabe31688343e59feea08a7e0ef8b0d9efb466abfa153aec16
     - name: gpu-feature-discovery-image
       image: nvcr.io/nvidia/gpu-feature-discovery@sha256:bfc39d23568458dfd50c0c5323b6d42bdcd038c420fb2a2becd513a3ed3be27f
     - name: mig-manager-image
-      image: nvcr.io/nvidia/cloud-native/k8s-mig-manager@sha256:495ed3b42e0541590c537ab1b33bda772aad530d3ef6a4f9384d3741a59e2bf8
+      image: nvcr.io/nvidia/cloud-native/k8s-mig-manager@sha256:d718dda2f9c9f0a465240772ed1ca6db44789d37255172e00637a092bdd1ba31
     - name: init-container-image
-      image: nvcr.io/nvidia/cuda@sha256:15674e5c45c97994bc92387bad03a0d52d7c1e983709c471c4fecc8e806dbdce
-    - name: gpu-operator-validator
-      image: nvcr.io/nvidia/cloud-native/gpu-operator-validator@sha256:cb7c89d0d336b61ac6624a0f1900dd2516faa12aa9cfe52cb3f2385a8aece1c7
+      image: nvcr.io/nvidia/cuda@sha256:e137c897256501537e0986963889a91ec90cac029b5263fc4b229b278f5b1a02
+    - name: gpu-operator-validator-image
+      image: nvcr.io/nvidia/cloud-native/gpu-operator-validator:devel-ubi8
+    - name: k8s-driver-manager-image
+      image: nvcr.io/nvidia/cloud-native/k8s-driver-manager@sha256:54233ebccbc3d2b388b237031907d58c3719d0e6f3ecb874349c91e8145225d2
   customresourcedefinitions:
     owned:
     - name: clusterpolicies.nvidia.com
@@ -468,6 +355,219 @@ spec:
     mediatype: image/png
   install:
     spec:
+      clusterPermissions:
+      - serviceAccountName: gpu-operator
+        rules:
+        - apiGroups:
+          - nvidia.com
+          resources:
+          - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - clusterversions
+          - proxies
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - '*'
+        - apiGroups:
+          - security.openshift.io
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
+          resourceNames:
+          - hostmount-anyuid
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterroles
+          - clusterrolebindings
+          - roles
+          - rolebindings
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          - nodes
+          - namespaces
+          - serviceaccounts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - node.k8s.io
+          resources:
+          - runtimeclasses
+          verbs:
+          - get
+          - list
+          - create
+          - update
+          - watch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          - prometheusrules
+          verbs:
+          - get
+          - list
+          - create
+          - watch
+          - update
+        - apiGroups:
+          - image.openshift.io
+          resources:
+          - imagestreams
+          verbs:
+          - get
+          - list
+          - watch
+      permissions:
+      - serviceAccountName: gpu-operator
+        rules:
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - roles
+          - rolebindings
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - endpoints
+          - persistentvolumeclaims
+          - events
+          - configmaps
+          - secrets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          - replicasets
+          - statefulsets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          - prometheusrules
+          verbs:
+          - get
+          - create
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resourceNames:
+          - gpu-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+        - apiGroups:
+          - apps
+          resources:
+          - replicasets
+          - deployments
+          verbs:
+          - get
+        - apiGroups:
+          - nvidia.com
+          resources:
+          - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - '*'
       deployments:
       - name: gpu-operator
         spec:
@@ -475,21 +575,21 @@ spec:
           selector:
             matchLabels:
               app.kubernetes.io/component: gpu-operator
-              name: gpu-operator
+              app: gpu-operator
           strategy: {}
           template:
             metadata:
               labels:
                 app.kubernetes.io/component: gpu-operator
-                name: gpu-operator
+                app: gpu-operator
             spec:
               priorityClassName: system-node-critical
               containers:
               - args:
-                - --leader-elect
+                  - --leader-elect
+                image: nvcr.io/nvidia/gpu-operator:devel-ubi8
                 command:
-                - gpu-operator
-                image: nvcr.io/nvidia/gpu-operator@sha256:2fe9e7ee251762a9d862e780ecb45bd2d4b2ecf976cc7195adc3cbc3cb034733
+                  - gpu-operator
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -497,6 +597,9 @@ spec:
                   initialDelaySeconds: 15
                   periodSeconds: 20
                 name: gpu-operator
+                ports:
+                - name: metrics
+                  containerPort: 8080
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -505,17 +608,42 @@ spec:
                   periodSeconds: 10
                 resources:
                   limits:
-                    cpu: 300m
-                    memory: 100Mi
+                    cpu: 500m
+                    memory: 500Mi
                   requests:
                     cpu: 200m
-                    memory: 50Mi
+                    memory: 200Mi
                 securityContext:
                   allowPrivilegeEscalation: false
                 volumeMounts:
                 - mountPath: /host-etc/os-release
                   name: host-os-release
                   readOnly: true
+                env:
+                  - name: OPERATOR_NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: "VALIDATOR_IMAGE"
+                    value: "nvcr.io/nvidia/cloud-native/gpu-operator-validator:devel-ubi8"
+                  - name: "GFD_IMAGE"
+                    value: "nvcr.io/nvidia/gpu-feature-discovery@sha256:bfc39d23568458dfd50c0c5323b6d42bdcd038c420fb2a2becd513a3ed3be27f"
+                  - name: "CONTAINER_TOOLKIT_IMAGE"
+                    value: "nvcr.io/nvidia/k8s/container-toolkit@sha256:5f826e306d093332a86afa7d1e96218b5bdda8d33067931cff7914f6bb2994ee"
+                  - name: "DCGM_IMAGE"
+                    value: "nvcr.io/nvidia/cloud-native/dcgm@sha256:f4c4de8d66b2fef8cebaee6fec2fb2d15d01e835de2654df6dfd4a0ce0baec6b"
+                  - name: "DCGM_EXPORTER_IMAGE"
+                    value: "nvcr.io/nvidia/k8s/dcgm-exporter@sha256:8546a3e1ca8e642d2dbbfde13ee439e8137513be9886f9fe51f4fa9c4db80198"
+                  - name: "DEVICE_PLUGIN_IMAGE"
+                    value: "nvcr.io/nvidia/k8s-device-plugin@sha256:69171f906efe4bbabe31688343e59feea08a7e0ef8b0d9efb466abfa153aec16"
+                  - name: "DRIVER_IMAGE"
+                    value: "nvcr.io/nvidia/driver@sha256:35c8231e28e572b148699d52a5f5c9745556fd32ab4160da68d0fc84234c1309"
+                  - name: "DRIVER_MANAGER_IMAGE"
+                    value: "nvcr.io/nvidia/cloud-native/k8s-driver-manager@sha256:54233ebccbc3d2b388b237031907d58c3719d0e6f3ecb874349c91e8145225d2"
+                  - name: "MIG_MANAGER_IMAGE"
+                    value: "nvcr.io/nvidia/cloud-native/k8s-mig-manager@sha256:d718dda2f9c9f0a465240772ed1ca6db44789d37255172e00637a092bdd1ba31"
+                  - name: "CUDA_BASE_IMAGE"
+                    value: "nvcr.io/nvidia/cuda@sha256:e137c897256501537e0986963889a91ec90cac029b5263fc4b229b278f5b1a02"
               terminationGracePeriodSeconds: 10
               volumes:
               - hostPath:
@@ -524,13 +652,13 @@ spec:
               serviceAccountName: gpu-operator
     strategy: deployment
   installModes:
-  - supported: false
+  - supported: true
     type: OwnNamespace
-  - supported: false
+  - supported: true
     type: SingleNamespace
-  - supported: true
+  - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - gpu
@@ -546,4 +674,4 @@ spec:
   maturity: stable
   provider:
     name: NVIDIA Corporation
-  version: 1.7.0
+  version: 1.0.0-devel

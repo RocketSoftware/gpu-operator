@@ -1,37 +1,28 @@
+default:
+  image: docker:stable
+  services:
+    - name: docker:stable-dind
+      command: ["--experimental"]
+
 variables:
-  DH_PROD_IMAGE: nvidia/gpu-operator
-  DH_PROD_VALIDATOR_IMAGE: nvidia/gpu-operator-validator
-  VALIDATOR_IMAGE_NAME: gpu-operator-validator
   TF_VAR_FILE: "$CI_PROJECT_DIR/tests/terraform.tfvars"
+  TF_VAR_project_name: "gpu-operator"
   GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
-  - versioning
+  - image
   - lint
+  - go-checks
+  - go-build
+  - unit-tests
   - build
   - tests
   - scan
+  - deploy
   - aws_kube_setup
   - e2e_tests
   - aws_kube_clean
   - release
-
-versioning:
-  stage: versioning
-  image:
-    name: alpine/git
-    entrypoint: ['/usr/bin/env']
-  script:
-    # generate version information, an artifact sourced as a script in other jobs
-    - VERSION="$(git describe --tags --dirty --always)"
-    - echo export VERSION=${VERSION} | tee .VERSION_INFO
-    - echo export LAST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) | tee -a .VERSION_INFO
-    - if [ -z "${CI_COMMIT_TAG}" ]; then echo SUBCHART_DIR="nightly" ; else echo SUBCHART_DIR="stable"; fi | tee -a .VERSION_INFO
-    # check that index is not dirty - to avoid some annoying to debug CI failures
-    - "git diff-index --quiet HEAD -- || ( echo ERROR: Unstaged files or dirty index ; exit 1 )"
-  artifacts:
-    paths:
-      - .VERSION_INFO
 
 helm-lint:
   stage: lint
@@ -45,97 +36,196 @@ helm-lint:
   script:
     - helm lint deployments/gpu-operator/
 
-go-lint:
-  stage: lint
-  allow_failure: true
-  image: golang:1.15
-  services:
-    - docker:stable-dind
-  script:
-    - GO111MODULE=off go get -u golang.org/x/lint/golint
-    - make lint
+.dev-image:
+  variables:
+    IMAGE: "${CI_REGISTRY_IMAGE}"
+    IMAGE_TAG: "${CI_COMMIT_REF_SLUG}"
 
-go-fmt:
-  stage: lint
-  allow_failure: true
-  image: golang:1.15
-  services:
-    - docker:stable-dind
+build-dev-image:
+  extends:
+    - .dev-image
+  stage: image
   script:
-    - make fmt
+    - apk --no-cache add make bash
+    - make .build-image
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - make .push-build-image
+
+.requires-build-image:
+  image: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_REF_SLUG}-build
+
+.go-check:
+  extends:
+    - .requires-build-image
+  stage: go-checks
+
+fmt:
+  extends:
+    - .go-check
+  script:
+    - make assert-fmt
+
+vet:
+  extends:
+    - .go-check
+  script:
+    - make vet
+
+go-lint:
+  extends:
+    - .go-check
+  script:
+    - make lint
+  allow_failure: true
 
 ineffassign:
-  stage: lint
-  allow_failure: true
-  image: golang:1.15
+  extends:
+    - .go-check
   script:
-    - GO111MODULE=off go get -u github.com/gordonklaus/ineffassign
-    - make assign
+    - make ineffassign
 
 misspell:
-  stage: lint
-  allow_failure: true
-  image: golang:1.15
+  extends:
+    - .go-check
   script:
-    - GO111MODULE=off go get -u github.com/client9/misspell/cmd/misspell
     - make misspell
 
-build-image:
-  stage: build
-  image: docker:stable
-  services:
-    - docker:stable-dind
+go-build:
+  extends:
+    - .requires-build-image
+  stage: go-build
   script:
-    - source .VERSION_INFO
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - apk add --update make
-
-    - make docker-build IMG=$CI_REGISTRY_IMAGE:$VERSION
-    - docker push "$CI_REGISTRY_IMAGE:$VERSION"
-
-build-validator:
-  stage: build
-  image: docker:stable
-  services:
-    - docker:stable-dind
-  script:
-    - source .VERSION_INFO
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - apk add --update make
-    - cd validator && make ubi8 IMAGE=$CI_REGISTRY_IMAGE/$VALIDATOR_IMAGE_NAME VERSION=$VERSION
-    - docker push "$CI_REGISTRY_IMAGE/$VALIDATOR_IMAGE_NAME:$VERSION"
+    - make build
 
 unit-tests:
-  stage: tests
-  image: docker:stable
-  services:
-    - docker:stable-dind
-  except:
-    variables:
-      - $SKIP_TESTS =~ /^y/
-
+  extends:
+    - .requires-build-image
+  stage: unit-tests
   script:
-    - apk add --update make
-    - make devel-image IMG=nvidia/gpu-operator:devel
-    - docker run -t nvidia/gpu-operator:devel make unit-test
-  dependencies:
-    - build-image
+    - make coverage
 
-.scan:
-  stage: scan
-  image: docker:stable
-  services:
-    - docker:stable-dind
-  except:
-    variables:
-      - $SKIP_SCANS =~ /^y/
+# Define targets for the gpu-operator and gpu-operator-validator images
+.target-gpu-operator:
+  variables:
+    TARGET: "ubi8"
+    IMAGE_NAME: "gpu-operator"
+
+.target-gpu-operator-validator:
+  variables:
+    TARGET: "ubi8"
+    SUBCOMPONENT: "validator"
+    IMAGE_NAME: "gpu-operator-validator"
+
+# The .build step forms the base of the image builds with each variant
+# defined as a build-${VARIANT} step.
+.build:
+  stage: build
+  variables:
+    REGISTRY: "${CI_REGISTRY_IMAGE}"
+    VERSION: "${CI_COMMIT_SHA}"
   before_script:
-    - source .VERSION_INFO
-    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
-    - docker pull ${CI_REGISTRY_IMAGE}:${VERSION}
-    - docker pull ${CI_REGISTRY_IMAGE}/${VALIDATOR_IMAGE_NAME}:${VERSION}
+    - apk add make
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
   script:
-    - 'false'
+    - make build-${TARGET}
+    - make push-${TARGET}
+
+build:gpu-operator:
+  extends:
+    - .build
+    - .target-gpu-operator
+
+build:gpu-operator-validator:
+  extends:
+    - .build
+    - .target-gpu-operator-validator
+
+# .deploy forms the base of the deployment jobs which push images to the CI registry.
+# This is extended with the version to be deployed (e.g. the SHA or TAG) and the
+# target os.
+.deploy:
+  stage: deploy
+  before_script:
+    # In the case where we are deploying a different version to the CI_COMMIT_SHA, we
+    # need to tag the image.
+    # Note: a leading 'v' is stripped from the version if present
+    - 'echo Version: ${VERSION} ; [[ -n "${VERSION}" ]] || exit 1'
+    - apk add --no-cache make bash
+    - 'echo "Logging in to CI registry ${CI_REGISTRY}"'
+    - docker login -u "${CI_REGISTRY_USER}" -p "${CI_REGISTRY_PASSWORD}" "${CI_REGISTRY}"
+    - docker pull "${CI_REGISTRY_IMAGE}/${IMAGE_NAME}:${CI_COMMIT_SHA}-${TARGET}"
+  script:
+    - docker tag "${CI_REGISTRY_IMAGE}/${IMAGE_NAME}:${CI_COMMIT_SHA}-${TARGET}" "${OUT_IMAGE}:${VERSION}-${TARGET}"
+    # Log in to the "output" registry, tag the image and push the image
+    - 'echo "Logging in to output registry ${OUT_REGISTRY}"'
+    - docker logout
+    - docker login -u "${OUT_REGISTRY_USER}" -p "${OUT_REGISTRY_TOKEN}" "${OUT_REGISTRY}"
+    - make IMAGE=${OUT_IMAGE} VERSION=${VERSION} push-${TARGET}
+
+# .deploy:sha sets the internal deployment version to the git SHA and deploys to the CI
+# container registry
+.deploy:sha-ci:
+  extends: .deploy
+  variables:
+    VERSION: "${CI_COMMIT_SHA}"
+    OUT_REGISTRY_USER: "${CI_REGISTRY_USER}"
+    OUT_REGISTRY_TOKEN: "${CI_REGISTRY_PASSWORD}"
+    OUT_REGISTRY: "${CI_REGISTRY}"
+    OUT_IMAGE: "${CI_REGISTRY_IMAGE}/${IMAGE_NAME}"
+
+deploy:sha-ci-gpu-operator:
+  extends:
+    - .deploy:sha-ci
+    - .target-gpu-operator
   dependencies:
-    - build-image
-    - versioning
+    - build:gpu-operator
+
+deploy:sha-ci-gpu-operator-validator:
+  extends:
+    - .deploy:sha-ci
+    - .target-gpu-operator-validator
+  dependencies:
+    - build:gpu-operator-validator
+
+# A release job is a deployment job that has a different output version / image
+.release:
+  extends: .deploy
+  stage: release
+  variables:
+    # We use the CI_COMMIT_SHORT_SHA and override this for external releases
+    VERSION: "${CI_COMMIT_SHORT_SHA}"
+
+# Define a staging release step that pushes an image to an internal "staging" repository
+# This is triggered for all pipelines (i.e. not only tags) to test the pipeline steps
+# outside of the release process.
+.release:staging:
+  extends: .release
+  variables:
+    OUT_REGISTRY_USER: "${CI_REGISTRY_USER}"
+    OUT_REGISTRY_TOKEN: "${CI_REGISTRY_PASSWORD}"
+    OUT_REGISTRY: "${CI_REGISTRY}"
+    OUT_IMAGE: "${CI_REGISTRY_IMAGE}/staging/${IMAGE_NAME}"
+
+.release:external:
+  extends: .release
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        VERSION: "${CI_COMMIT_TAG}"
+    - if: $CI_COMMIT_BRANCH == $RELEASE_DEVEL_BRANCH
+      variables:
+        VERSION: "${RELEASE_DEVEL_TAG}"
+
+release:staging-gpu-operator:
+  extends:
+    - .release:staging
+    - .target-gpu-operator
+  dependencies:
+    - deploy:sha-ci-gpu-operator
+
+release:staging-gpu-operator-validator:
+  extends:
+    - .release:staging
+    - .target-gpu-operator-validator
+  dependencies:
+    - deploy:sha-ci-gpu-operator-validator

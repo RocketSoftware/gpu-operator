@@ -5,14 +5,20 @@ check_pod_ready() {
 	local current_time=0
 	while :; do
 		echo "Checking $pod_label pod"
-		kubectl get pods -lapp=$pod_label -n gpu-operator-resources
+		kubectl get pods -lapp=$pod_label -n ${TEST_NAMESPACE}
 
 		echo "Checking $pod_label pod readiness"
-		is_pod_ready=$(kubectl get pods -lapp=$pod_label -n gpu-operator-resources -ojsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}')
+		is_pod_ready=$(kubectl get pods -lapp=$pod_label -n ${TEST_NAMESPACE} -ojsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}')
 
 		if [ "${is_pod_ready}" = "True" ]; then
-			echo "Pod $pod_label is ready"
-			break;
+			# Check if the pod is not in terminating state
+			is_pod_terminating=$(kubectl get pods -lapp=$pod_label -n ${TEST_NAMESPACE} -o jsonpath='{.items[0].metadata.deletionGracePeriodSeconds}')
+			if [ "${is_pod_terminating}" = "30" ]; then
+				echo "pod $pod_label is in terminating state..."
+			else
+				echo "Pod $pod_label is ready"
+				break;
+			fi
 		fi
 
 		if [[ "${current_time}" -gt $((60 * 45)) ]]; then
@@ -21,7 +27,7 @@ check_pod_ready() {
 		fi
 
 		# Echo useful information on stdout
-		kubectl get pods -n gpu-operator-resources
+		kubectl get pods -n ${TEST_NAMESPACE}
 
 		echo "Sleeping 5 seconds"
 		current_time=$((${current_time} + 5))
@@ -29,12 +35,32 @@ check_pod_ready() {
 	done
 }
 
+check_no_restarts() {
+	local pod_label=$1
+	restartCount=$(kubectl get pod -lapp=$pod_label -n ${TEST_NAMESPACE} -o jsonpath='{.items[*].status.containerStatuses[0].restartCount}')
+	if [ $restartCount -gt 1 ]; then
+		echo "$pod_label restarted multiple times: $restartCount"
+		kubectl logs -p -lapp=$pod_label --all-containers -n ${TEST_NAMESPACE}
+		exit 1
+	fi
+	echo "Repeated restarts not observed for pod $pod_label"
+	return 0
+}
+
 # This function kills the operator and waits for the operator to be back in a running state
 # Timeout is 100 seconds
 test_restart_operator() {
 	local ns=${1}
-	# The operator is the only container that has the string '"gpu-operator"'
-	docker kill "$(docker ps --format '{{.ID}} {{.Command}}' | grep "gpu-operator" | cut -f 1 -d ' ')"
+	local runtime=${2}
+
+	if [[ x"${runtime}" == x"containerd" ]]; then
+		# The operator is the only container that has the string '"gpu-operator"'
+		# TODO: This requires permissions on containerd.sock
+		sudo crictl rm --force "$(sudo crictl ps --name gpu-operator | awk '{if(NR>1)print $1}')"
+	else
+		# The operator is the only container that has the string '"gpu-operator"'
+	    docker kill "$(docker ps --format '{{.ID}} {{.Command}}' | grep "gpu-operator" | cut -f 1 -d ' ')"
+	fi
 
 	for i in $(seq 1 10); do
 		# Sleep a reasonable amount of time for k8s to update the container status to crashing
@@ -57,6 +83,10 @@ test_restart_operator() {
 check_gpu_pod_ready() {
 	local log_dir=$1
 	local current_time=0
+
+	# Ensure the log directory exists
+	mkdir -p ${log_dir}
+
 	while :; do
 		pods="$(kubectl get --all-namespaces pods -o json | jq '.items[] | {name: .metadata.name, ns: .metadata.namespace}' | jq -s -c .)"
 		status=$(kubectl get pods gpu-operator-test -o json | jq -r .status.phase)

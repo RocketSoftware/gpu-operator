@@ -17,9 +17,8 @@ TERRAFORM="terraform -chdir=${TERRAFORM_DIR}"
 : ${LOG_DIR:="/tmp/logs"}
 : ${PROJECT:="$(basename "${PROJECT_DIR}")"}
 : ${TEST_NAMESPACE:="test-operator"}
+: ${TARGET_DRIVER_VERSION:="460.73.01"}
 
 : ${OPERATOR_IMAGE:="nvcr.io/nvidia/gpu-operator"}
 
-function remote() {
-    ${SCRIPT_DIR}/remote.sh "cd ${PROJECT} && $@"
-}
+: ${CONTAINER_RUNTIME:="docker"}

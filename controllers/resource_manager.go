@@ -33,7 +33,7 @@ type Resources struct {
 	RoleBinding                rbacv1.RoleBinding
 	ClusterRole                rbacv1.ClusterRole
 	ClusterRoleBinding         rbacv1.ClusterRoleBinding
-	ConfigMap                  corev1.ConfigMap
+	ConfigMaps                 []corev1.ConfigMap
 	DaemonSet                  appsv1.DaemonSet
 	Deployment                 appsv1.Deployment
 	Pod                        corev1.Pod
@@ -43,8 +43,8 @@ type Resources struct {
 	Taint                      corev1.Taint
 	SecurityContextConstraints secv1.SecurityContextConstraints
 	PodSecurityPolicy          policyv1beta1.PodSecurityPolicy
-	Namespace                  corev1.Namespace
 	RuntimeClass               nodev1.RuntimeClass
+	PrometheusRule             promv1.PrometheusRule
 }
 
 func filePathWalkDir(n *ClusterPolicyController, root string) ([]string, error) {
@@ -123,9 +123,14 @@ func addResourcesControls(n *ClusterPolicyController, path string, openshiftVers
 			panicIfError(err)
 			ctrl = append(ctrl, ClusterRoleBinding)
 		case "ConfigMap":
-			_, _, err := s.Decode(m, nil, &res.ConfigMap)
+			cm := corev1.ConfigMap{}
+			_, _, err := s.Decode(m, nil, &cm)
 			panicIfError(err)
-			ctrl = append(ctrl, ConfigMap)
+			res.ConfigMaps = append(res.ConfigMaps, cm)
+			// only add the ctrl function when the first ConfigMap is added for this component
+			if len(res.ConfigMaps) == 1 {
+				ctrl = append(ctrl, ConfigMaps)
+			}
 		case "DaemonSet":
 			_, _, err := s.Decode(m, nil, &res.DaemonSet)
 			panicIfError(err)
@@ -146,10 +151,6 @@ func addResourcesControls(n *ClusterPolicyController, path string, openshiftVers
 			_, _, err := s.Decode(m, nil, &res.SecurityContextConstraints)
 			panicIfError(err)
 			ctrl = append(ctrl, SecurityContextConstraints)
-		case "Namespace":
-			_, _, err := s.Decode(m, nil, &res.Namespace)
-			panicIfError(err)
-			ctrl = append(ctrl, Namespace)
 		case "RuntimeClass":
 			_, _, err := s.Decode(m, nil, &res.RuntimeClass)
 			panicIfError(err)
@@ -158,6 +159,10 @@ func addResourcesControls(n *ClusterPolicyController, path string, openshiftVers
 			_, _, err := s.Decode(m, nil, &res.PodSecurityPolicy)
 			panicIfError(err)
 			ctrl = append(ctrl, PodSecurityPolicy)
+		case "PrometheusRule":
+			_, _, err := s.Decode(m, nil, &res.PrometheusRule)
+			panicIfError(err)
+			ctrl = append(ctrl, PrometheusRule)
 		default:
 			n.rec.Log.Info("Unknown Resource", "Manifest", m, "Kind", kind)
 		}

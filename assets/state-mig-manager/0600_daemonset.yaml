@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: nvidia-mig-manager
-  namespace: gpu-operator-resources
+  namespace: "FILLED BY THE OPERATOR"
   labels:
     app: nvidia-mig-manager
 spec:
@@ -14,10 +14,13 @@ spec:
       labels:
         app: nvidia-mig-manager
     spec:
+      nodeSelector:
+        nvidia.com/gpu.deploy.mig-manager: "true"
       tolerations:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
+      priorityClassName: system-node-critical
       serviceAccount: nvidia-mig-manager
       initContainers:
         - name: toolkit-validation
@@ -32,7 +35,7 @@ spec:
               mountPropagation: HostToContainer
       containers:
       - name: nvidia-mig-manager
-        image: "FILLED_BY_OPERATOR"
+        image: "FILLED BY THE OPERATOR"
         imagePullPolicy: IfNotPresent
         env:
         - name: NODE_NAME
@@ -41,10 +44,12 @@ spec:
               fieldPath: spec.nodeName
         - name: CONFIG_FILE
           value: "/mig-parted-config/config.yaml"
-        - name: WITH_REBOOT
-          value: "FILLED_BY_OPERATOR"
-        - name: HOST_ROOT_MOUNT
-          value: "/host"
+        - name: GPU_CLIENTS_FILE
+          value: "/gpu-clients/clients.yaml"
+        - name: DEFAULT_GPU_CLIENTS_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         securityContext:
           privileged: true
         volumeMounts:
@@ -54,6 +59,9 @@ spec:
           name: mig-parted-config
         - mountPath: /host
           name: host-root
+          mountPropagation: HostToContainer
+        - mountPath: /gpu-clients
+          name: gpu-clients
       volumes:
       - name: host-sys
         hostPath:
@@ -61,7 +69,7 @@ spec:
           type: Directory
       - name: mig-parted-config
         configMap:
-          name: mig-parted-config
+          name: "FILLED_BY_OPERATOR"
       - name: run-nvidia
         hostPath:
           path: "/run/nvidia"
@@ -69,3 +77,6 @@ spec:
       - name: host-root
         hostPath:
           path: "/"
+      - name: gpu-clients
+        configMap:
+          name: "FILLED_BY_OPERATOR"
