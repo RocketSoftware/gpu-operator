@@ -7,16 +7,16 @@ source ${SCRIPT_DIR}/.definitions.sh
 ${SCRIPT_DIR}/install-operator.sh
 ${SCRIPT_DIR}/verify-operator.sh
 
-# Verify the installation
-${SCRIPT_DIR}/verify-operator.sh
-
 # Install a workload and verify that this works as expected
 ${SCRIPT_DIR}/install-workload.sh
 ${SCRIPT_DIR}/verify-workload.sh
 
+# Test updates through ClusterPolicy
+${SCRIPT_DIR}/update-clusterpolicy.sh
+
 # TODO: This should be reusable
 source ${SCRIPT_DIR}/checks.sh
-test_restart_operator ${TEST_NAMESPACE}
+test_restart_operator ${TEST_NAMESPACE} ${CONTAINER_RUNTIME}
 
 # Uninstall the workload and operator
 ${SCRIPT_DIR}/uninstall-workload.sh

@@ -75,13 +75,24 @@ rules:
   - list
   - watch
 - apiGroups:
+  - image.openshift.io
+  resources:
+  - imagestreams
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - monitoring.coreos.com
   resources:
+  - prometheusrule
   - servicemonitors
   verbs:
   - create
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - nvidia.com

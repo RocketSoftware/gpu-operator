@@ -11,28 +11,27 @@ nfd:
 psp:
   enabled: false
 
-validator:
-  repository: icr.io/rocketce
-  image: gpu-operator-validator
-  version: v0.1.0
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
-  env: []
-  args: []
+daemonsets:
+  priorityClassName: system-node-critical
   tolerations:
   - key: nvidia.com/gpu
     operator: Exists
     effect: NoSchedule
-  nodeSelector:
-    nvidia.com/gpu.deploy.operator-validator: "true"
-  affinity: {}
-  podSecurityContext: {}
+
+validator:
+  repository: icr.io/rocketce
+  image: gpu-operator-validator
+  # If version is not specified, then default is to use chart.AppVersion
+  #version: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  env: []
+  args: []
   securityContext:
     privileged: true
     seLinuxOptions:
       level: "s0"
   resources: {}
-  priorityClassName: system-node-critical
   plugin:
     env:
       - name: WITH_WORKLOAD
@@ -42,16 +41,17 @@ operator:
   repository: icr.io/rocketce
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
-  #version: v1.7.0
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
+  #version: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
   priorityClassName: system-node-critical
-  defaultRuntime: crio
+  defaultRuntime: docker
+  runtimeClass: nvidia
   initContainer:
-    image: cuda-ppc64le
-    repository: nvidia
-    version: 11.2.1-base-ubi8
-    imagePullPolicy: Always
+    image: cuda
+    repository: nvcr.io/nvidia
+    version: 11.4.2-base-ubi8
+    imagePullPolicy: IfNotPresent
   tolerations:
   - key: "node-role.kubernetes.io/master"
     operator: "Equal"
@@ -70,26 +70,45 @@ operator:
                 values: [""]
   logging:
     timeEncoding: epoch
+  resources:
+    limits:
+      cpu: 500m
+      memory: 350Mi
+    requests:
+      cpu: 200m
+      memory: 100Mi
 
 mig:
   strategy: single
 
 driver:
   enabled: true
-  repository: icr.io/rocketce
+  use_ocp_driver_toolkit: false
+  repository: nvcr.io/nvidia
   image: driver
-  version: "460.73.01-rhcos4.8"
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
+  version: "470.82.01"
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  rdma:
+    enabled: false
+    useHostMofed: false
+  manager:
+    image: k8s-driver-manager
+    repository: nvcr.io/nvidia/cloud-native
+    version: v0.2.0
+    imagePullPolicy: IfNotPresent
+    env:
+      - name: ENABLE_AUTO_DRAIN
+        value: "true"
+      - name: DRAIN_USE_FORCE
+        value: "false"
+      - name: DRAIN_POD_SELECTOR_LABEL
+        value: ""
+      - name: DRAIN_TIMEOUT_SECONDS
+        value: "0s"
+      - name: DRAIN_DELETE_EMPTYDIR_DATA
+        value: "false"
   env: []
-  tolerations:
-  - key: nvidia.com/gpu
-    operator: Exists
-    effect: NoSchedule
-  nodeSelector:
-    nvidia.com/gpu.deploy.driver: "true"
-  affinity: {}
-  podSecurityContext: {}
   securityContext:
     privileged: true
     seLinuxOptions:
@@ -98,41 +117,37 @@ driver:
   # private mirror repository configuration
   repoConfig:
     configMapName: ""
-    destinationDir: ""
+  # custom ssl key/certificate configuration
+  certConfig:
+    name: ""
   # vGPU licensing configuration
   licensingConfig:
     configMapName: ""
-  priorityClassName: system-node-critical
+    nlsEnabled: false
+  # vGPU topology daemon configuration
+  virtualTopology:
+    config: ""
 
 toolkit:
   enabled: true
   repository: icr.io/rocketce
   image: container-toolkit
-  version: 1.5.0-ubi8
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
+  version: 1.7.2-ubuntu18.04
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
   env: []
-  tolerations:
-  - key: nvidia.com/gpu
-    operator: Exists
-    effect: NoSchedule
-  nodeSelector:
-    nvidia.com/gpu.deploy.container-toolkit: "true"
-  affinity: {}
-  podSecurityContext: {}
   securityContext:
     privileged: true
     seLinuxOptions:
       level: "s0"
   resources: {}
-  priorityClassName: system-node-critical
 
 devicePlugin:
   repository: icr.io/rocketce
   image: k8s-device-plugin
-  version: v0.9.0-ubi8
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
+  version: v0.10.0-ubi8
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -147,87 +162,82 @@ devicePlugin:
       value: all
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: all
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
-  nodeSelector:
-    nvidia.com/gpu.deploy.device-plugin: "true"
-  affinity: {}
-  podSecurityContext: {}
   securityContext:
     privileged: true
   resources: {}
-  priorityClassName: system-node-critical
+
+# standalone dcgm hostengine
+dcgm:
+  # disabled by default to use embedded nv-hostengine by exporter
+  enabled: false
+  repository: nvcr.io/nvidia/cloud-native
+  image: dcgm
+  version: 2.3.1-ubuntu20.04
+  imagePullPolicy: IfNotPresent
+  hostPort: 5555
+  args: []
+  env: []
+  securityContext: {}
+  resources: {}
 
 dcgmExporter:
   repository: icr.io/rocketce
   image: dcgm-exporter
-  version: 2.2.9-2.5.0-ubi8
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
-  args:
-    - "-f"
-    - "/etc/dcgm-exporter/dcp-metrics-included.csv"
-  env: []
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
-  nodeSelector:
-    nvidia.com/gpu.deploy.dcgm-exporter: "true"
-  affinity: {}
-  podSecurityContext: {}
+  version: 2.3.1-2.6.1-ubuntu20.04
+  imagePullPolicy: IfNotPresent
+  env:
+    - name: DCGM_EXPORTER_LISTEN
+      value: ":9400"
+    - name: DCGM_EXPORTER_KUBERNETES
+      value: "true"
+    - name: DCGM_EXPORTER_COLLECTORS
+      value: "/etc/dcgm-exporter/dcp-metrics-included.csv"
   securityContext: {}
   resources: {}
-  priorityClassName: system-node-critical
 
 gfd:
   repository: icr.io/rocketce
   image: gpu-feature-discovery
-  version: ppc64le_v4.8.0-202110011559
-  imagePullPolicy: Always
-  imagePullSecrets: ["icrlogin"]
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
+  version: v0.4.1
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
   env:
     - name: GFD_SLEEP_INTERVAL
       value: 60s
     - name: GFD_FAIL_ON_INIT_ERROR
       value: "true"
-  nodeSelector:
-    nvidia.com/gpu.deploy.gpu-feature-discovery: "true"
-  affinity: {}
   podSecurityContext: {}
   securityContext: {}
   resources: {}
-  priorityClassName: system-node-critical
 
 
 migManager:
   enabled: true
   repository: nvcr.io/nvidia/cloud-native
   image: k8s-mig-manager
-  version: v0.1.1-ubuntu20.04
-  imagePullPolicy: Always
+  version: v0.2.0-ubuntu20.04
+  imagePullPolicy: IfNotPresent
   imagePullSecrets: []
-  tolerations:
-    - key: nvidia.com/gpu
-      operator: Exists
-      effect: NoSchedule
   env:
     - name: WITH_REBOOT
       value: "false"
-  nodeSelector:
-    nvidia.com/gpu.deploy.mig-manager: "true"
-  affinity: {}
-  podSecurityContext: {}
   securityContext:
     privileged: true
   resources: {}
-  priorityClassName: system-node-critical
+  config:
+    name: ""
+  gpuClientsConfig:
+    name: ""
+
+nodeStatusExporter:
+  enabled: false
+  repository: nvcr.io/nvidia/cloud-native
+  image: gpu-operator-validator
+  # If version is not specified, then default is to use chart.AppVersion
+  #version: ""
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  resources: {}
 
 node-feature-discovery:
   worker:
@@ -244,6 +254,12 @@ node-feature-discovery:
     config: |
       sources:
         pci:
+          deviceClassWhitelist:
+          - "02"
+          - "0200"
+          - "0207"
+          - "0300"
+          - "0302"
           deviceLabelFields:
           - vendor
 

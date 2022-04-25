@@ -64,9 +64,20 @@ type Plugin struct {
 // Toolkit component
 type Toolkit struct{}
 
+// MOFED represents spec to validate MOFED driver installation
+type MOFED struct {
+	kubeClient kubernetes.Interface
+}
+
+// Metrics represents spec to run metrics exporter
+type Metrics struct {
+	kubeClient kubernetes.Interface
+}
+
 var (
 	kubeconfigFlag           string
 	nodeNameFlag             string
+	namespaceFlag            string
 	withWaitFlag             bool
 	withWorkloadFlag         bool
 	componentFlag            string
@@ -74,6 +85,7 @@ var (
 	outputDirFlag            string
 	sleepIntervalSecondsFlag int
 	migStrategyFlag          string
+	metricsPort              int
 )
 
 const (
@@ -81,6 +93,8 @@ const (
 	defaultStatusPath = "/run/nvidia/validations"
 	// defaultSleepIntervalSeconds indicates sleep interval in seconds between validation command retries
 	defaultSleepIntervalSeconds = 5
+	// defaultMetricsPort indicates the port on which the metrics will be exposed.
+	defaultMetricsPort = 0
 	// driverStatusFile indicates status file for driver readiness
 	driverStatusFile = "driver-ready"
 	// toolkitStatusFile indicates status file for toolkit readiness
@@ -89,6 +103,8 @@ const (
 	pluginStatusFile = "plugin-ready"
 	// cudaStatusFile indicates status file for cuda readiness
 	cudaStatusFile = "cuda-ready"
+	// mofedStatusFile indicates status file for mofed driver readiness
+	mofedStatusFile = "mofed-ready"
 	// podCreationWaitRetries indicates total retries to wait for plugin validation pod creation
 	podCreationWaitRetries = 60
 	// podCreationSleepIntervalSeconds indicates sleep interval in seconds between checking for plugin validation pod readiness
@@ -113,8 +129,6 @@ const (
 	cudaWorkloadPodSpecPath = "/var/nvidia/manifests/cuda-workload-validation.yaml"
 	// NodeSelectorKey indicates node label key to use as node selector for plugin validation pod
 	nodeSelectorKey = "kubernetes.io/hostname"
-	// validationPodNamespace indicates namespace to deploy plugin validation pod
-	validationPodNamespace = "gpu-operator-resources"
 	// validatorImageEnvName indicates env name for validator image passed
 	validatorImageEnvName = "VALIDATOR_IMAGE"
 	// validatorImagePullPolicyEnvName indicates env name for validator image pull policy passed
@@ -127,6 +141,12 @@ const (
 	cudaValidatorLabelValue = "nvidia-cuda-validator"
 	// pluginValidatorLabelValue represents label for device-plugin workload validation pod
 	pluginValidatorLabelValue = "nvidia-device-plugin-validator"
+	// MellanoxDeviceLabelKey represents NFD label name for Mellanox devices
+	MellanoxDeviceLabelKey = "feature.node.kubernetes.io/pci-15b3.present"
+	// GPUDirectRDMAEnabledEnvName represents env name to indicate if GPUDirect RDMA is enabled through GPU Operator
+	GPUDirectRDMAEnabledEnvName = "GPU_DIRECT_RDMA_ENABLED"
+	// UseHostMOFEDEnvname represents env name to indicate if MOFED is pre-installed on host
+	UseHostMOFEDEnvname = "USE_HOST_MOFED"
 )
 
 func main() {
@@ -149,6 +169,14 @@ func main() {
 			Usage:       "the name of the node to deploy plugin validation pod",
 			Destination: &nodeNameFlag,
 			EnvVars:     []string{"NODE_NAME"},
+		},
+		&cli.StringFlag{
+			Name:        "namespace",
+			Aliases:     []string{"ns"},
+			Value:       "",
+			Usage:       "the namespace in which the operator resources are deployed",
+			Destination: &namespaceFlag,
+			EnvVars:     []string{"OPERATOR_NAMESPACE"},
 		},
 		&cli.BoolFlag{
 			Name:        "with-wait",
@@ -206,6 +234,14 @@ func main() {
 			Destination: &migStrategyFlag,
 			EnvVars:     []string{"MIG_STRATEGY"},
 		},
+		&cli.IntFlag{
+			Name:        "metrics-port",
+			Aliases:     []string{"p"},
+			Value:       defaultMetricsPort,
+			Usage:       "port on which the metrics will be exposed. 0 means disabled.",
+			Destination: &metricsPort,
+			EnvVars:     []string{"METRICS_PORT"},
+		},
 	}
 
 	// Handle signals
@@ -237,9 +273,26 @@ func validateFlags(c *cli.Context) error {
 	if !isValidComponent() {
 		return fmt.Errorf("invalid -c <component-name> flag value: %s", componentFlag)
 	}
-	if componentFlag == "plugin" && nodeNameFlag == "" {
-		return fmt.Errorf("invalid -n <node-name> flag: must not be empty string for plugin validation")
+	if componentFlag == "plugin" {
+		if nodeNameFlag == "" {
+			return fmt.Errorf("invalid -n <node-name> flag: must not be empty string for plugin validation")
+		}
+		if namespaceFlag == "" {
+			return fmt.Errorf("invalid -ns <namespace> flag: must not be empty string for plugin validation")
+		}
 	}
+	if componentFlag == "cuda" && namespaceFlag == "" {
+		return fmt.Errorf("invalid -ns <namespace> flag: must not be empty string for cuda validation")
+	}
+	if componentFlag == "metrics" {
+		if metricsPort == defaultMetricsPort {
+			return fmt.Errorf("invalid -p <port> flag: must not be empty or 0 for the metrics component")
+		}
+		if nodeNameFlag == "" {
+			return fmt.Errorf("invalid -n <node-name> flag: must not be empty string for metrics exporter")
+		}
+	}
+
 	return nil
 }
 
@@ -251,7 +304,11 @@ func isValidComponent() bool {
 		fallthrough
 	case "cuda":
 		fallthrough
+	case "metrics":
+		fallthrough
 	case "plugin":
+		return true
+	case "mofed":
 		return true
 	default:
 		return false
@@ -305,23 +362,41 @@ func start(c *cli.Context) error {
 			return fmt.Errorf("error validating plugin installation: %s", err)
 		}
 		return nil
+	case "mofed":
+		mofed := &MOFED{}
+		err := mofed.validate()
+		if err != nil {
+			return fmt.Errorf("error validating MOFED driver installation: %s", err)
+		}
+		return nil
+	case "metrics":
+		metrics := &Metrics{}
+		err := metrics.run()
+		if err != nil {
+			return fmt.Errorf("error running validation-metrics exporter: %s", err)
+		}
+		return nil
 	default:
 		return fmt.Errorf("invalid component specified for validation: %s", componentFlag)
 	}
 }
 
-func runCommand(command string, args []string) error {
+func runCommand(command string, args []string, silent bool) error {
 	cmd := exec.Command(command, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if !silent {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	return cmd.Run()
 }
 
-func runCommandWithWait(command string, args []string, sleepSeconds int) error {
+func runCommandWithWait(command string, args []string, sleepSeconds int, silent bool) error {
 	for {
 		cmd := exec.Command(command, args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		if !silent {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
 		fmt.Printf("running command %s with args %v\n", command, args)
 		err := cmd.Run()
 		if err != nil {
@@ -336,11 +411,23 @@ func runCommandWithWait(command string, args []string, sleepSeconds int) error {
 func cleanupStatusFiles() error {
 	command := "rm"
 	args := []string{"-f", fmt.Sprintf("%s/*-ready", outputDirFlag)}
-	err := runCommand(command, args)
+	err := runCommand(command, args, false)
 	if err != nil {
 		return fmt.Errorf("unable to cleanup status files: %s", err)
 	}
 	return nil
+}
+
+func (d *Driver) runValidation(silent bool) error {
+	// invoke validation command
+	command := "chroot"
+	args := []string{"/run/nvidia/driver", "nvidia-smi"}
+
+	if withWaitFlag {
+		return runCommandWithWait(command, args, sleepIntervalSecondsFlag, silent)
+	}
+
+	return runCommand(command, args, silent)
 }
 
 func (d *Driver) validate() error {
@@ -350,14 +437,7 @@ func (d *Driver) validate() error {
 		return err
 	}
 
-	// invoke validation command
-	command := "chroot"
-	args := []string{"/run/nvidia/driver", "nvidia-smi"}
-	if withWaitFlag {
-		err = runCommandWithWait(command, args, sleepIntervalSecondsFlag)
-	} else {
-		err = runCommand(command, args)
-	}
+	err = d.runValidation(false)
 	if err != nil {
 		fmt.Println("driver is not ready")
 		return err
@@ -401,9 +481,9 @@ func (t *Toolkit) validate() error {
 	command := "nvidia-smi"
 	args := []string{}
 	if withWaitFlag {
-		err = runCommandWithWait(command, args, sleepIntervalSecondsFlag)
+		err = runCommandWithWait(command, args, sleepIntervalSecondsFlag, false)
 	} else {
-		err = runCommand(command, args)
+		err = runCommand(command, args, false)
 	}
 	if err != nil {
 		fmt.Println("toolkit is not ready")
@@ -462,6 +542,90 @@ func (p *Plugin) validate() error {
 	return nil
 }
 
+func (m *MOFED) validate() error {
+	// If GPUDirectRDMA is disabled, skip validation
+	if os.Getenv(GPUDirectRDMAEnabledEnvName) != "true" {
+		log.Info("GPUDirect RDMA is disabled, skipping MOFED driver validation...")
+		return nil
+	}
+
+	// Check node labels for Mellanox devices and MOFED driver status file
+	kubeConfig, err := rest.InClusterConfig()
+	if err != nil {
+		log.Errorf("Error getting config cluster - %s\n", err.Error())
+		return err
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		log.Errorf("Error getting k8s client - %s\n", err.Error())
+		return err
+	}
+
+	// update k8s client for the mofed driver validation
+	m.setKubeClient(kubeClient)
+
+	present, err := m.isMellanoxDevicePresent()
+	if err != nil {
+		log.Errorf(err.Error())
+		return err
+	}
+	if !present {
+		log.Info("No Mellanox device label found, skipping MOFED driver validation...")
+		return nil
+	}
+
+	// delete status file is already present
+	err = deleteStatusFile(outputDirFlag + "/" + mofedStatusFile)
+	if err != nil {
+		return err
+	}
+
+	err = m.runValidation(false)
+	if err != nil {
+		return err
+	}
+
+	// delete status file is already present
+	err = createStatusFile(outputDirFlag + "/" + mofedStatusFile)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *MOFED) runValidation(silent bool) error {
+	//check for mlx5_core module to be loaded
+	command := "bash"
+	args := []string{"-c", "lsmod | grep mlx5_core"}
+
+	// If MOFED container is running then use readiness flag set by the driver container instead
+	if os.Getenv(UseHostMOFEDEnvname) != "true" {
+		args = []string{"-c", "stat /run/mellanox/drivers/.driver-ready"}
+	}
+	if withWaitFlag {
+		return runCommandWithWait(command, args, sleepIntervalSecondsFlag, silent)
+	}
+	return runCommand(command, args, silent)
+}
+
+func (m *MOFED) setKubeClient(kubeClient kubernetes.Interface) {
+	m.kubeClient = kubeClient
+}
+
+func (m *MOFED) isMellanoxDevicePresent() (bool, error) {
+	node, err := getNode(m.kubeClient)
+	if err != nil {
+		return false, fmt.Errorf("unable to fetch node by name %s to check for Mellanox device label: %s", nodeNameFlag, err)
+	}
+	for key, value := range node.GetLabels() {
+		if key == MellanoxDeviceLabelKey && value == "true" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (p *Plugin) runWorkload() error {
 	// load podSpec
 	pod, err := loadPodSpec(pluginWorkloadPodSpecPath)
@@ -469,10 +633,16 @@ func (p *Plugin) runWorkload() error {
 		return err
 	}
 
-	pod.Spec.Containers[0].Image = os.Getenv(validatorImageEnvName)
-	pod.Spec.Containers[0].ImagePullPolicy = v1.PullPolicy(os.Getenv(validatorImagePullPolicyEnvName))
-	pod.Spec.InitContainers[0].Image = os.Getenv(validatorImageEnvName)
-	pod.Spec.InitContainers[0].ImagePullPolicy = v1.PullPolicy(os.Getenv(validatorImagePullPolicyEnvName))
+	pod.ObjectMeta.Namespace = namespaceFlag
+	image := os.Getenv(validatorImageEnvName)
+	pod.Spec.Containers[0].Image = image
+	pod.Spec.InitContainers[0].Image = image
+
+	imagePullPolicy := os.Getenv(validatorImagePullPolicyEnvName)
+	if imagePullPolicy != "" {
+		pod.Spec.Containers[0].ImagePullPolicy = v1.PullPolicy(imagePullPolicy)
+		pod.Spec.InitContainers[0].ImagePullPolicy = v1.PullPolicy(imagePullPolicy)
+	}
 
 	if os.Getenv(validatorImagePullSecretsEnvName) != "" {
 		pullSecrets := strings.Split(os.Getenv(validatorImagePullSecretsEnvName), ",")
@@ -506,7 +676,7 @@ func (p *Plugin) runWorkload() error {
 		FieldSelector: fields.Set{"spec.nodeName": nodeNameFlag}.AsSelector().String()}
 
 	// check if plugin validation pod is already running and cleanup.
-	podList, err := p.kubeClient.CoreV1().Pods(validationPodNamespace).List(context.TODO(), opts)
+	podList, err := p.kubeClient.CoreV1().Pods(namespaceFlag).List(context.TODO(), opts)
 	if err != nil {
 		return fmt.Errorf("cannot list existing validation pods: %s", err)
 	}
@@ -515,20 +685,20 @@ func (p *Plugin) runWorkload() error {
 		propagation := meta_v1.DeletePropagationBackground
 		gracePeriod := int64(0)
 		options := meta_v1.DeleteOptions{PropagationPolicy: &propagation, GracePeriodSeconds: &gracePeriod}
-		err = p.kubeClient.CoreV1().Pods(validationPodNamespace).Delete(context.TODO(), podList.Items[0].ObjectMeta.Name, options)
+		err = p.kubeClient.CoreV1().Pods(namespaceFlag).Delete(context.TODO(), podList.Items[0].ObjectMeta.Name, options)
 		if err != nil {
 			return fmt.Errorf("cannot delete previous validation pod: %s", err)
 		}
 	}
 
 	// wait for plugin validation pod to be ready.
-	newPod, err := p.kubeClient.CoreV1().Pods(validationPodNamespace).Create(context.TODO(), pod, meta_v1.CreateOptions{})
+	newPod, err := p.kubeClient.CoreV1().Pods(namespaceFlag).Create(context.TODO(), pod, meta_v1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create plugin validation pod %s, err %+v", pod.ObjectMeta.Name, err)
 	}
 
 	// make sure its available
-	err = waitForPod(p.kubeClient, newPod.ObjectMeta.Name, validationPodNamespace)
+	err = waitForPod(p.kubeClient, newPod.ObjectMeta.Name, namespaceFlag)
 	if err != nil {
 		return err
 	}
@@ -537,7 +707,7 @@ func (p *Plugin) runWorkload() error {
 
 func setOwnerReference(kubeClient kubernetes.Interface, pod *v1.Pod) error {
 	// get owner of validator daemonset (which is ClusterPolicy)
-	validatorDaemonset, err := kubeClient.AppsV1().DaemonSets(validationPodNamespace).Get(context.TODO(), "nvidia-operator-validator", meta_v1.GetOptions{})
+	validatorDaemonset, err := kubeClient.AppsV1().DaemonSets(namespaceFlag).Get(context.TODO(), "nvidia-operator-validator", meta_v1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -589,10 +759,29 @@ func loadPodSpec(podSpecPath string) (*v1.Pod, error) {
 	return &pod, nil
 }
 
+func (p *Plugin) countGPUResources() (int64, error) {
+	// get node info to check discovered GPU resources
+	node, err := getNode(p.kubeClient)
+	if err != nil {
+		return -1, fmt.Errorf("unable to fetch node by name %s to check for GPU resources: %s", nodeNameFlag, err)
+	}
+
+	count := int64(0)
+
+	for resourceName, quantity := range node.Status.Capacity {
+		if !strings.HasPrefix(string(resourceName), migGPUResourcePrefix) && !strings.HasPrefix(string(resourceName), genericGPUResourceType) {
+			continue
+		}
+
+		count += quantity.Value()
+	}
+	return count, nil
+}
+
 func (p *Plugin) validateGPUResource() error {
 	for retry := 1; retry <= gpuResourceDiscoveryWaitRetries; retry++ {
 		// get node info to check discovered GPU resources
-		node, err := p.getNode()
+		node, err := getNode(p.kubeClient)
 		if err != nil {
 			return fmt.Errorf("unable to fetch node by name %s to check for GPU resources: %s", nodeNameFlag, err)
 		}
@@ -633,7 +822,7 @@ func (p *Plugin) isFullGPUResourcePresent(resources v1.ResourceList) bool {
 
 func (p *Plugin) getGPUResourceName() (v1.ResourceName, error) {
 	// get node info to check allocatable GPU resources
-	node, err := p.getNode()
+	node, err := getNode(p.kubeClient)
 	if err != nil {
 		return "", fmt.Errorf("unable to fetch node by name %s to check for GPU resources: %s", nodeNameFlag, err)
 	}
@@ -654,8 +843,8 @@ func (p *Plugin) setKubeClient(kubeClient kubernetes.Interface) {
 	p.kubeClient = kubeClient
 }
 
-func (p *Plugin) getNode() (*v1.Node, error) {
-	node, err := p.kubeClient.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, meta_v1.GetOptions{})
+func getNode(kubeClient kubernetes.Interface) (*v1.Node, error) {
+	node, err := kubeClient.CoreV1().Nodes().Get(context.TODO(), nodeNameFlag, meta_v1.GetOptions{})
 	if err != nil {
 		log.Errorf("unable to get node with name %s, err %s", nodeNameFlag, err.Error())
 		return nil, err
@@ -710,11 +899,16 @@ func (c *CUDA) runWorkload() error {
 	if err != nil {
 		return err
 	}
+	pod.ObjectMeta.Namespace = namespaceFlag
+	image := os.Getenv(validatorImageEnvName)
+	pod.Spec.Containers[0].Image = image
+	pod.Spec.InitContainers[0].Image = image
 
-	pod.Spec.Containers[0].Image = os.Getenv(validatorImageEnvName)
-	pod.Spec.Containers[0].ImagePullPolicy = v1.PullPolicy(os.Getenv(validatorImagePullPolicyEnvName))
-	pod.Spec.InitContainers[0].Image = os.Getenv(validatorImageEnvName)
-	pod.Spec.InitContainers[0].ImagePullPolicy = v1.PullPolicy(os.Getenv(validatorImagePullPolicyEnvName))
+	imagePullPolicy := os.Getenv(validatorImagePullPolicyEnvName)
+	if imagePullPolicy != "" {
+		pod.Spec.Containers[0].ImagePullPolicy = v1.PullPolicy(imagePullPolicy)
+		pod.Spec.InitContainers[0].ImagePullPolicy = v1.PullPolicy(imagePullPolicy)
+	}
 
 	if os.Getenv(validatorImagePullSecretsEnvName) != "" {
 		pullSecrets := strings.Split(os.Getenv(validatorImagePullSecretsEnvName), ",")
@@ -737,7 +931,7 @@ func (c *CUDA) runWorkload() error {
 		FieldSelector: fields.Set{"spec.nodeName": nodeNameFlag}.AsSelector().String()}
 
 	// check if cuda workload pod is already running and cleanup.
-	podList, err := c.kubeClient.CoreV1().Pods(validationPodNamespace).List(context.TODO(), opts)
+	podList, err := c.kubeClient.CoreV1().Pods(namespaceFlag).List(context.TODO(), opts)
 	if err != nil {
 		return fmt.Errorf("cannot list existing validation pods: %s", err)
 	}
@@ -746,22 +940,28 @@ func (c *CUDA) runWorkload() error {
 		propagation := meta_v1.DeletePropagationBackground
 		gracePeriod := int64(0)
 		options := meta_v1.DeleteOptions{PropagationPolicy: &propagation, GracePeriodSeconds: &gracePeriod}
-		err = c.kubeClient.CoreV1().Pods(validationPodNamespace).Delete(context.TODO(), podList.Items[0].ObjectMeta.Name, options)
+		err = c.kubeClient.CoreV1().Pods(namespaceFlag).Delete(context.TODO(), podList.Items[0].ObjectMeta.Name, options)
 		if err != nil {
 			return fmt.Errorf("cannot delete previous validation pod: %s", err)
 		}
 	}
 
 	// wait for cuda workload pod to be ready.
-	newPod, err := c.kubeClient.CoreV1().Pods(validationPodNamespace).Create(context.TODO(), pod, meta_v1.CreateOptions{})
+	newPod, err := c.kubeClient.CoreV1().Pods(namespaceFlag).Create(context.TODO(), pod, meta_v1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create cuda validation pod %s, err %+v", pod.ObjectMeta.Name, err)
 	}
 
 	// make sure its available
-	err = waitForPod(c.kubeClient, newPod.ObjectMeta.Name, validationPodNamespace)
+	err = waitForPod(c.kubeClient, newPod.ObjectMeta.Name, namespaceFlag)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (c *Metrics) run() error {
+	m := NewNodeMetrics(metricsPort)
+
+	return m.Run()
 }

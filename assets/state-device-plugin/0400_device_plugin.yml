@@ -4,7 +4,7 @@ metadata:
   labels:
     app: nvidia-device-plugin-daemonset
   name: nvidia-device-plugin-daemonset
-  namespace: gpu-operator-resources
+  namespace: "FILLED BY THE OPERATOR"
   annotations:
     openshift.io/scc: hostmount-anyuid
 spec:
@@ -16,14 +16,13 @@ spec:
       labels:
         app: nvidia-device-plugin-daemonset
     spec:
+      nodeSelector:
+        nvidia.com/gpu.deploy.device-plugin: "true"
       tolerations:
-      # Allow this pod to be rescheduled while the node is in "critical add-ons only" mode.
-      # This, along with the annotation above marks this pod as a critical add-on.
-      - key: CriticalAddonsOnly
-        operator: Exists
-      - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      priorityClassName: system-node-critical
       serviceAccount: nvidia-device-plugin
       initContainers:
       - name: toolkit-validation
@@ -41,6 +40,19 @@ spec:
         name: nvidia-device-plugin-ctr
         securityContext:
           privileged: true
+        env:
+          - name: PASS_DEVICE_SPECS
+            value: "true"
+          - name: FAIL_ON_INIT_ERROR
+            value: "true"
+          - name: DEVICE_LIST_STRATEGY
+            value: envvar
+          - name: DEVICE_ID_STRATEGY
+            value: uuid
+          - name: NVIDIA_VISIBLE_DEVICES
+            value: all
+          - name: NVIDIA_DRIVER_CAPABILITIES
+            value: all
         volumeMounts:
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
