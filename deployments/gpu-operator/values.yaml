@@ -19,7 +19,7 @@ validator:
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env: []
   args: []
   securityContext:
@@ -37,7 +37,7 @@ operator:
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   priorityClassName: system-node-critical
   defaultRuntime: crio
   runtimeClass: nvidia
@@ -80,7 +80,7 @@ driver:
   image: driver
   version: "470.82.01"
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   rdma:
     enabled: false
     useHostMofed: false
@@ -125,7 +125,7 @@ toolkit:
   image: container-toolkit
   version: 1.7.2-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env: []
   securityContext:
     privileged: true
@@ -137,7 +137,7 @@ devicePlugin:
   image: k8s-device-plugin
   version: v0.10.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -187,7 +187,7 @@ gfd:
   image: gpu-feature-discovery
   version: v0.4.1
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: GFD_SLEEP_INTERVAL
       value: 60s
@@ -202,7 +202,7 @@ migManager:
   image: k8s-mig-manager
   version: v0.2.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: WITH_REBOOT
       value: "false"
@@ -220,7 +220,7 @@ nodeStatusExporter:
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   resources: {}
 node-feature-discovery:
   worker:
