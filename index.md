@@ -19,6 +19,7 @@ This is a technical preview release of the GPU operator. The operator can be dep
 - RedHat Enterprise Linux (RHEL) 8.X 
 - Ensure that the appropriate Red Hat subscriptions and entitlements for OpenShift are properly enabled.
 - API Key to access images from icr.io. If you dont have one, request api key to access icr.io to pull images at following email address rocketce@rocketsoftware.com. For more details refer https://cloud.ibm.com/docs/openshift?topic=openshift-registry .
+- Install the Node Feature Discovery (NFD) operator using Step 3 of this https://community.ibm.com/community/user/storage/blogs/gero-schmidt1/2021/05/10/how-to-install-the-nvidia-gpu-operator-on-openshif
 
 #### Quickstart
 ```sh
