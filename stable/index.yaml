@@ -21,6 +21,7 @@ entries:
     - deep learning
     - monitoring
     - tesla
+    - rocket
     kubeVersion: '>= 1.16.0-0'
     name: gpu-operator
     sources:
