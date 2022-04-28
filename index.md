@@ -9,7 +9,7 @@ The GPU operator manages NVIDIA GPU resources in a Openshift cluster and automat
 The NVIDIA GPU Operator uses the operator framework within Kubernetes to automate the management of all NVIDIA software components needed to provision GPU. These components include the NVIDIA drivers (to enable CUDA), Kubernetes device plugin for GPUs, the NVIDIA Container Toolkit, automatic node labelling using GFD, DCGM based monitoring and others.
 
 ## Project Status
-This is a technical preview release of the GPU operator. The operator can be deployed using a Helm chart. 
+This is a technical preview release of the GPU operator. The operator can be deployed using a Helm chart in an operating Openshift Cluster
 
 ## Prerequisites and Platform Support 
 - ppc64le GPUs are only supported 
