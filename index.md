@@ -9,7 +9,7 @@ The GPU operator manages NVIDIA GPU resources in a Openshift cluster and automat
 The NVIDIA GPU Operator uses the operator framework within Kubernetes to automate the management of all NVIDIA software components needed to provision GPU. These components include the NVIDIA drivers (to enable CUDA), Kubernetes device plugin for GPUs, the NVIDIA Container Toolkit, automatic node labelling using GFD, DCGM based monitoring and others.
 
 ## Project Status
-This is a technical preview release of the GPU operator. The operator can be deployed using a Helm chart. 
+This is a technical preview release of the GPU operator. The operator can be deployed using a Helm chart in an operating Openshift Cluster
 
 ## Prerequisites and Platform Support 
 - ppc64le GPUs are only supported 
@@ -17,7 +17,7 @@ This is a technical preview release of the GPU operator. The operator can be dep
 - Access to the OpenShift cluster as a cluster-admin to perform the necessary steps.
 - OpenShift CLI (oc) installed.
 - RedHat Enterprise Linux (RHEL) 8.X 
-- Ensure that the appropriate Red Hat subscriptions and entitlements for OpenShift are properly enabled.
+- Ensure that the appropriate Red Hat subscriptions and entitlements for OpenShift are properly enabled. This can be done using Step 1 and Step 2 of this https://community.ibm.com/community/user/storage/blogs/gero-schmidt1/2021/05/10/how-to-install-the-nvidia-gpu-operator-on-openshif
 - API Key to access images from icr.io. If you dont have one, request api key to access icr.io to pull images at following email address rocketce@rocketsoftware.com. For more details refer https://cloud.ibm.com/docs/openshift?topic=openshift-registry .
 - Install the Node Feature Discovery (NFD) operator using Step 3 of this https://community.ibm.com/community/user/storage/blogs/gero-schmidt1/2021/05/10/how-to-install-the-nvidia-gpu-operator-on-openshif
 
