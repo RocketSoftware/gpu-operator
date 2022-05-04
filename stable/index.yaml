@@ -3,7 +3,7 @@ entries:
   gpu-operator:
   - apiVersion: v2
     appVersion: v1.9.1
-    created: "2022-04-25T15:17:33.2788472+05:30"
+    created: "2022-05-04T17:06:34.1709983+05:30"
     dependencies:
     - condition: nfd.enabled
       name: node-feature-discovery
@@ -21,7 +21,6 @@ entries:
     - deep learning
     - monitoring
     - tesla
-    - rocket
     kubeVersion: '>= 1.16.0-0'
     name: gpu-operator
     sources:
@@ -31,7 +30,7 @@ entries:
     version: v1.9.1
   - apiVersion: v2
     appVersion: v1.7.0
-    created: "2022-04-24T16:29:58.2225855+05:30"
+    created: "2022-05-04T17:06:34.1664346+05:30"
     dependencies:
     - condition: nfd.enabled
       name: node-feature-discovery
@@ -49,7 +48,6 @@ entries:
     - deep learning
     - monitoring
     - tesla
-    - rocket
     kubeVersion: '>= 1.16.0-0'
     name: gpu-operator
     sources:
@@ -57,4 +55,4 @@ entries:
     urls:
     - https://rocketsoftware.github.io/gpu-operator/stable/gpu-operator-v1.7.0.tgz
     version: v1.7.0
-generated: "2022-04-25T15:17:33.2748513+05:30"
+generated: "2022-05-04T17:06:34.1584028+05:30"
