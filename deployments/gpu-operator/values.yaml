@@ -14,12 +14,12 @@ daemonsets:
       operator: Exists
       effect: NoSchedule
 validator:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env: []
   args: []
   securityContext:
@@ -32,20 +32,21 @@ validator:
       - name: WITH_WORKLOAD
         value: "true"
 operator:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
-  #version: ""
+  version: v1.9.1-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   priorityClassName: system-node-critical
   defaultRuntime: crio
   runtimeClass: nvidia
   initContainer:
     image: cuda
-    repository: quay.io/mgiessing
+    repository: icr.io/rocketce
     version: 11.4.2-base-ubi8
     imagePullPolicy: Always
+    imagePullSecrets: ["icrlogin"]
   tolerations:
     - key: "node-role.kubernetes.io/master"
       operator: "Equal"
@@ -76,19 +77,20 @@ mig:
 driver:
   enabled: true
   use_ocp_driver_toolkit: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: driver
   version: "470.82.01"
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   rdma:
     enabled: false
     useHostMofed: false
   manager:
     image: k8s-driver-manager
-    repository: quay.io/mgiessing
+    repository: icr.io/rocketce
     version: v0.2.0-ubi8
     imagePullPolicy: Always
+    imagePullSecrets: ["icrlogin"]
     env:
       - name: ENABLE_AUTO_DRAIN
         value: "true"
@@ -121,11 +123,11 @@ driver:
     config: ""
 toolkit:
   enabled: true
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: container-toolkit
   version: 1.7.2-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env: []
   securityContext:
     privileged: true
@@ -133,11 +135,11 @@ toolkit:
       level: "s0"
   resources: {}
 devicePlugin:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: k8s-device-plugin
   version: v0.10.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   args: []
   env:
     - name: PASS_DEVICE_SPECS
@@ -159,20 +161,22 @@ devicePlugin:
 dcgm:
   # disabled by default to use embedded nv-hostengine by exporter
   enabled: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: dcgm
   version: 2.3.1-ubi8
   imagePullPolicy: Always
+  imagePullSecrets: ["icrlogin"]
   hostPort: 5555
   args: []
   env: []
   securityContext: {}
   resources: {}
 dcgmExporter:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: dcgm-exporter
   version: 2.3.1-2.6.1-ubi8
   imagePullPolicy: Always
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: DCGM_EXPORTER_LISTEN
       value: ":9400"
@@ -183,11 +187,11 @@ dcgmExporter:
   securityContext: {}
   resources: {}
 gfd:
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-feature-discovery
   version: v0.4.1
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: GFD_SLEEP_INTERVAL
       value: 60s
@@ -198,11 +202,11 @@ gfd:
   resources: {}
 migManager:
   enabled: true
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: k8s-mig-manager
   version: v0.2.0-ubi8
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: WITH_REBOOT
       value: "false"
@@ -215,12 +219,12 @@ migManager:
     name: ""
 nodeStatusExporter:
   enabled: false
-  repository: quay.io/mgiessing
+  repository: icr.io/rocketce
   image: gpu-operator-validator
   # If version is not specified, then default is to use chart.AppVersion
   #version: ""
   imagePullPolicy: Always
-  imagePullSecrets: []
+  imagePullSecrets: ["icrlogin"]
   resources: {}
 node-feature-discovery:
   worker:

@@ -144,7 +144,7 @@ CUDA_VERSION ?= 11.4.2
 GOLANG_VERSION ?= 1.17
 BUILDER_IMAGE ?= golang:$(GOLANG_VERSION)
 ifeq ($(IMAGE),)
-REGISTRY ?= quay.io/mgiessing
+REGISTRY ?= icr.io/rocketce
 IMAGE := $(REGISTRY)/gpu-operator
 endif
 IMAGE_TAG ?= $(GOLANG_VERSION)

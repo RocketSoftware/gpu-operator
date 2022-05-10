@@ -1,5 +1,5 @@
 image:
-  repository: quay.io/mgiessing/node-feature-discovery
+  repository: icr.io/rocketce/node-feature-discovery
   # This should be set to 'IfNotPresent' for released version
   pullPolicy: Always
   # tag, if defined will use the given image tag, else Chart.AppVersion will be used
