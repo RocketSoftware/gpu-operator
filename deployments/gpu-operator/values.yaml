@@ -35,7 +35,7 @@ operator:
   repository: icr.io/rocketce
   image: gpu-operator
   # If version is not specified, then default is to use chart.AppVersion
-  #version: ""
+  version: v1.9.1-ubi8
   imagePullPolicy: Always
   imagePullSecrets: ["icrlogin"]
   priorityClassName: system-node-critical
@@ -46,6 +46,7 @@ operator:
     repository: icr.io/rocketce
     version: 11.4.2-base-ubi8
     imagePullPolicy: Always
+    imagePullSecrets: ["icrlogin"]
   tolerations:
     - key: "node-role.kubernetes.io/master"
       operator: "Equal"
@@ -89,6 +90,7 @@ driver:
     repository: icr.io/rocketce
     version: v0.2.0-ubi8
     imagePullPolicy: Always
+    imagePullSecrets: ["icrlogin"]
     env:
       - name: ENABLE_AUTO_DRAIN
         value: "true"
@@ -163,6 +165,7 @@ dcgm:
   image: dcgm
   version: 2.3.1-ubi8
   imagePullPolicy: Always
+  imagePullSecrets: ["icrlogin"]
   hostPort: 5555
   args: []
   env: []
@@ -173,6 +176,7 @@ dcgmExporter:
   image: dcgm-exporter
   version: 2.3.1-2.6.1-ubi8
   imagePullPolicy: Always
+  imagePullSecrets: ["icrlogin"]
   env:
     - name: DCGM_EXPORTER_LISTEN
       value: ":9400"
